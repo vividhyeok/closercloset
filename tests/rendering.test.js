@@ -75,3 +75,16 @@ test('hoods and longer inner coat hems remain visible outside shorter outer garm
   const layers=composeLayers(look,gender);assert.ok(layers.find(l=>l.id==='exposed-hem'),gender);
  }
 });
+test('every available top, outer, bottom and shoe combination composes valid registered sprites',()=>{
+ let checked=0;
+ for(const gender of ['female','male'])for(const top of GARMENTS.top.filter(i=>!i.legacy))for(const outer of GARMENTS.outer.filter(i=>!i.legacy))for(const bottom of GARMENTS.bottom.filter(i=>!i.legacy))for(const shoe of GARMENTS.shoes){
+  const look=normalizeOutfit({top:top.id,outer:outer.id,bottom:bottom.id,shoes:shoe.id});
+  for(const layer of composeLayers(look,gender,'good')){
+   assert.ok(layer.dest.every(Number.isFinite));assert.ok(layer.dest[2]>0&&layer.dest[3]>0);
+   const [x,y,w,h]=layer.image.rect,[iw,ih]=layer.image.size;
+   assert.ok(x>=0&&y>=0&&w>0&&h>0&&x+w<=iw&&y+h<=ih,`${gender}/${top.id}/${outer.id}/${bottom.id}/${shoe.id}/${layer.id}`);
+  }
+  checked++;
+ }
+ assert.ok(checked>3000);
+});

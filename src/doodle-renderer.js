@@ -23,11 +23,12 @@ export function composeLayers(outfit,gender='female',mood='good'){
  const top=upper?.category==='top'?upper.id:null,outer=upper?.category==='outer'?upper.id:null;
  const customShoes=Boolean(catalog.footwear?.[gender]?.[outfit.shoes]);
  const coherentUpper=!upper||Boolean(art(gender,upper.id)?.includesHead);
- const lowerClip=customShoes?(gender==='male'?[[0,.48],[1,.48],[1,.926],[0,.926]]:[[0,.48],[1,.48],[1,.930],[.504,.930],[.326,.925],[0,.884]]):[[0,.48],[1,.48],[1,1],[0,1]];
+ const lowerClip=customShoes?[[0,.48],[1,.48],[1,.925],[0,.925]]:[[0,.48],[1,.48],[1,1],[0,1]];
+ const lowerBodyDest=[pose.dest[0],264+(pose.rect[1]-480)*256/450,pose.dest[2],pose.rect[3]*256/450];
  function basePart(id,rect,sourcePolygon){const[bx,by,bw,bh]=pose.rect,[dx,dy,dw,dh]=pose.dest,[x,y,w,h]=rect;layers.push({id,image:{...catalog.base,rect},dest:[dx+(x-bx)/bw*dw,dy+(y-by)/bh*dh,w/bw*dw,h/bh*dh],...(sourcePolygon?{clip:sourcePolygon.map(p=>[(p[0]-x)/w,(p[1]-y)/h])}:{})});}
  if(!upper&&!bottom)layers.push({id:'base',image:base,dest:pose.dest,clipWorld:[[0,105],[400,105],[400,customShoes?510:600],[0,customShoes?510:600]]});
  else{
-   if(!bottom||bottom==='shorts')layers.push({id:'body-lower',image:base,dest:pose.dest,clip:lowerClip,opacity:bottom?1:.25});
+   if(!bottom||bottom==='shorts')layers.push({id:'body-lower',image:base,dest:lowerBodyDest,clip:lowerClip,opacity:bottom?1:.25});
    else if(!customShoes){
      if(gender==='male')basePart('base-shoe',[303,970,176,67]);
      else{basePart('base-shoe-left',[729,955,177,93]);basePart('base-shoe-right',[970,993,111,62]);}

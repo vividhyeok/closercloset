@@ -36,7 +36,7 @@ Vercel에서 이 폴더/저장소를 Vite 프로젝트로 가져오면 됩니다
 - Build command: `npm run build`
 - Output directory: `dist`
 - Environment variables: 없음
-- `vercel.json` 포함. 현재 시제품은 로컬 개발 서버로 제공하며 배포는 아직 수행하지 않았습니다.
+- `vercel.json` 포함. 운영 주소: https://closercloset.vercel.app . GitHub `vividhyeok/closercloset`의 `codex/closercloset` 브랜치와 연결되어 푸시 시 Vercel이 자동 배포합니다.
 
 배포한 HTTPS 주소에서 iPhone Safari의 공유 → 홈 화면에 추가, Android Chrome의 앱 설치/홈 화면에 추가로 실행할 수 있습니다.
 
@@ -54,3 +54,5 @@ npm run build
 원본 PNG는 `public/art/`에 보관합니다. 사용한 내장 생성 도구와 프롬프트 브리프는 [docs/image-prompts.md](docs/image-prompts.md)에 있습니다. 렌더러는 `src/doodle-renderer.js`, 현재 파츠별 소스 영역·배치 기준은 `public/art/catalog-front.json`에 있습니다. 의류 파츠는 런타임에 새로 생성되지 않으며, 색상 변형은 브라우저 필터를 사용합니다.
 
 시간대 추천은 `src/daily-look.js`에서 같은 날 같은 기본 의류를 유지하며 외투와 소품을 탈착합니다. 직접 편집 중인 코디는 시간대 변경으로 교체하지 않습니다. 첫 방문 소개 → 설정 → 선택적 어제 경험 보정(5단계) → 추천/편집 → 기기 저장/PNG 공유 흐름입니다.
+
+보온 추정은 `src/thermal.js`의 원단·두께·커버 범위·방풍 프로필을 사용하며, 겹침에 따른 보온 증가를 완만하게 계산합니다. 값은 이 앱의 상대적 시제품 기준이며 실측 clo 값이 아닙니다. 겹 목록의 ↕ 손잡이를 끌거나 키보드 위/아래 방향키로 순서를 바꿀 수 있습니다. 후드와 긴 안쪽 밑단은 별도 노출 레이어로 렌더링합니다.
