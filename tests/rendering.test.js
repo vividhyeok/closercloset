@@ -88,3 +88,19 @@ test('every available top, outer, bottom and shoe combination composes valid reg
  }
  assert.ok(checked>3000);
 });
+
+test('reported layered-coat cases use hand-free tails and retain an overlapping torso join',()=>{
+ for(const gender of ['female','male']){
+  let look=normalizeOutfit({top:'knit',outer:'coat',bottom:'straight-denim',shoes:'loafers'});look=addLayer(addLayer(look,'outer','jacket'),'outer','leather');
+  const layers=composeLayers(look,gender,'hot'),tail=layers.find(l=>l.id==='exposed-hem');
+  assert.equal(tail.image.src,'/art/coat-lower-v7.png');assert.equal(tail.cutouts,undefined);
+  const coat=layers.find(l=>l.id==='inner'&&l.image===catalog.garments[gender].coat);
+  assert.ok(tail.dest[1]<Math.max(...coat.clipWorld.map(p=>p[1])));
+  if(gender==='female')assert.ok(layers.find(l=>l.id==='visible-upper').cutouts.length>0);
+ }
+});
+
+test('outer clothing worn alone keeps its original neck instead of cutting an empty hole',()=>{
+ const look=normalizeOutfit({layers:[{key:'coat',category:'outer',id:'coat'}]});
+ for(const gender of ['male','female'])assert.equal(composeLayers(look,gender).find(l=>l.id==='visible-upper').cutouts.length,0);
+});

@@ -35,7 +35,7 @@ for gender in ['male','female']:
  name='front-'+gender+'-upper-v6.png';im=Image.open(a/name);cells=scan(name,[0,374,737,1102,im.height])
  for key,rec in zip(keys,cells):c['garments'][gender][key]=place(rec,gender)
  c['garments'][gender]['quilted']=c['garments'][gender]['jacket']
- pose=c['poses'][gender];pose.update(bottom=[141,264,122,266],shorts=[141,264,122,124],bodyClip=[[153,105],[252,105],[254,280],[145,280]],shoeLeft=[138,508,62,47],shoeRight=[203,508,62,47],hat=[145,0,110,65],scarf=[175,100,67,125])
+ pose=c['poses'][gender];pose.update(bottom=[141,264,122,266],shorts=[141,264,122,124],bodyClip=[[153,100 if gender=='male' else 114],[252,100 if gender=='male' else 114],[254,280],[145,280]],shoeLeft=[138,508,62,47],shoeRight=[203,508,62,47],hat=[145,0,110,65],scarf=[175,100,67,125])
 base=Image.open(a/'front-base-v6.png');c['base']={'src':'/art/front-base-v6.png','size':list(base.size)}
 for gender,box in [('male',[320,20,290,985]),('female',[925,40,280,965])]:
  rec={'src':c['base']['src'],'size':c['base']['size'],'rect':box};f=face(rec);fx,fy,fr,fb=f;scale=(48 if gender=='male' else 54)/(fb-fy);x,y,w,h=box
@@ -66,6 +66,9 @@ for gender in ['male','female']:
     rr,g,b,aa=px[xx,yy]
     if aa>230 and not (rr>175 and rr-g>28 and g-b>8):bottom=max(bottom,yy)
   rec['hem']=rec['dest'][1]+(bottom-y)/h*rec['dest'][3]
-c['version']=6
+tail_image=Image.open(a/'coat-lower-v7.png')
+tails=scan('coat-lower-v7.png',[0,tail_image.height],2)
+c['coatTails']={'male':tails[0],'female':tails[1]}
+c['version']=7
 (a/'catalog-front.json').write_text(json.dumps(c,ensure_ascii=False,indent=2),encoding='utf-8')
 print('Wrote front pose catalog')
