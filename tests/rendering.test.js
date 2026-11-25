@@ -1,0 +1,55 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import catalog from '../public/art/catalog.json' with {type:'json'};
+import {composeLayers} from '../src/doodle-renderer.js';
+import {GARMENTS} from '../src/wardrobe.js';
+import {normalizeOutfit,addLayer} from '../src/layers.js';
+
+test('every available garment has a pose-specific image inside its atlas bounds',()=>{
+ for(const gender of ['female','male'])for(const [category,items] of Object.entries(GARMENTS))for(const item of items.filter(i=>i.id!=='none'&&!i.legacy)){
+  const art=catalog.garments[gender][item.id];assert.ok(art,`${gender}/${category}/${item.id}`);const[x,y,w,h]=art.rect;assert.ok(x>=0&&y>=0&&w>0&&h>0&&x+w<=art.size[0]&&y+h<=art.size[1]);
+ }
+});
+test('outer clothing clips the inner torso and never paints multiple full tops',()=>{
+ for(const gender of ['female','male']){
+  let look=normalizeOutfit({top:'long',outer:'coat',bottom:'regular-denim'});look=addLayer(look,'top','knit');
+  const layers=composeLayers(look,gender);assert.equal(layers.filter(l=>l.id==='visible-upper').length,1);assert.ok(layers.find(l=>l.id==='inner').clipWorld);assert.equal(layers.some(l=>l.id==='base'),false);
+  const peek=composeLayers({...look,peekTop:1},gender);assert.equal(peek.find(l=>l.id==='visible-upper').image,catalog.garments[gender].knit);
+ }
+});
+test('long trousers hide base bare legs and custom footwear never stacks on base shoes',()=>{
+ for(const gender of ['female','male']){
+  const look=normalizeOutfit({top:'long',outer:'none',bottom:'regular-denim',shoes:'loafers'});const layers=composeLayers(look,gender);
+  assert.equal(layers.some(l=>l.id==='body-lower'||l.id.startsWith('base-shoe')),false);assert.ok(layers.find(l=>l.id==='shoe-left'));
+ }
+});
+test('regular, straight, tapered and wide pants are distinct sprites',()=>{
+ for(const gender of ['female','male']){const sprites=['regular-denim','straight-denim','tapered-chino','slacks'].map(id=>{const a=catalog.garments[gender][id];return `${a.src}:${a.rect}`;});assert.equal(new Set(sprites).size,4);}
+});
+
+test('female upper garments keep the head, neck and shoulders in one registered frame',()=>{
+ for(const category of ['top','outer'])for(const item of GARMENTS[category].filter(i=>i.id!=='none'&&!i.legacy)){
+  const look=normalizeOutfit({top:'long',outer:'none',bottom:'regular-denim',[category]:item.id});
+  const layers=composeLayers(look,'female'),visible=layers.find(l=>l.id==='visible-upper');
+  assert.equal(visible.image.includesHead,true,item.id);
+  assert.equal(layers.some(l=>l.id==='head'||l.id.startsWith('arm')),false,item.id);
+  assert.deepEqual(visible.dest,visible.image.dest);
+ }
+});
+
+test('female feet use different complete views and every shoe retains its original proportions',()=>{
+ for(const gender of ['female','male'])for(const id of ['sneakers','loafers','wallabee']){
+  const layers=composeLayers(normalizeOutfit({top:'tee',bottom:'shorts',shoes:id}),gender);
+  const shoes=layers.filter(l=>l.id.startsWith('shoe-'));
+  assert.equal(shoes.length,gender==='female'?2:1);
+  for(const shoe of shoes){assert.equal(shoe.clip,undefined);assert.ok(Math.abs(shoe.dest[2]/shoe.dest[3]-shoe.image.rect[2]/shoe.image.rect[3])<1e-9);}
+  if(gender==='female')assert.notDeepEqual(shoes[0].image.rect,shoes[1].image.rect);
+ }
+});
+
+test('tinting a female garment restores the original head and skin in preview and export layers',()=>{
+ const look=normalizeOutfit({top:'tee',bottom:'regular-denim',colors:{top:'#9b4c50'}});
+ const layers=composeLayers(look,'female');
+ assert.equal(layers.find(l=>l.id==='visible-upper').color,'#9b4c50');
+ assert.ok(layers.find(l=>l.id==='natural-skin').clipPolygons.length>1);
+});

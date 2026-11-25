@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "closer. 날씨와 옷 사이",
+  "short_name": "closer.",
+  "description": "내일의 날씨, 오늘의 옷 고민. 나에게 맞는 옷차림을 만나보세요.",
+  "lang": "ko",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f8f2",
+  "theme_color": "#f7f8f2",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

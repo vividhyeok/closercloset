@@ -1,0 +1,10 @@
+import {character} from './paper-doll.js';
+import {outfitLayers,countLayers} from './layers.js';
+import {getGarment} from './wardrobe.js';
+const e=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dateLabel=date=>new Date(`${date}T12:00:00`).toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
+export function closetView(looks,icon){
+  const ordered=[...looks].sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
+  const groups=Object.groupBy?Object.groupBy(ordered,l=>l.date):ordered.reduce((acc,l)=>{(acc[l.date]??=[]).push(l);return acc;},{});
+  return `<section class="closet-intro"><h1>내 옷장 <span>${looks.length}</span></h1><p>입혀본 하루를 모아두었어요.</p></section>${looks.length?Object.entries(groups).map(([date,items])=>`<section class="closet-day"><h2>${dateLabel(date)}</h2><div class="closet-grid">${items.map((look,i)=>`<article class="closet-card"><button class="closet-art" data-action="restore-look" data-id="${e(look.id)}" aria-label="${dateLabel(date)} ${i+1}번 코디 다시 입히기">${character(look.outfit,look.gender||'female','good',`closet-${look.id}`)}</button><div class="closet-meta"><span>${e(look.city)} · 체감 ${e(look.feels)}°</span><button class="icon-button" data-action="delete-look" data-id="${e(look.id)}" aria-label="이 코디 삭제">${icon('trash-2')}</button></div><p class="closet-layer-count">상의 ${countLayers(look.outfit,'top')} · 하의 ${countLayers(look.outfit,'bottom')}겹</p><p class="closet-composition">${outfitLayers(look.outfit).map(l=>getGarment(l.category,l.id).name).join(' · ')}</p><div class="closet-card-actions"><button data-action="restore-look" data-id="${e(look.id)}">다시 입히기 ${icon('arrow-up-right')}</button><button data-action="share-saved" data-id="${e(look.id)}" aria-label="이 코디 이미지로 공유">${icon('arrow-up-right')}공유</button></div></article>`).join('')}</div></section>`).join(''):`<div class="closet-empty">${icon('bookmark')}<h2>아직 비어 있는 옷장이에요.</h2><p>마음에 드는 룩을 저장하면<br>나중에 다시 꺼내 입을 수 있어요.</p><button class="primary-button" data-action="mode" data-mode="edit">첫 코디 만들기 ${icon('arrow-right')}</button></div>`}`;
+}
