@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import catalog from '../public/art/catalog.json' with {type:'json'};
+import catalog from '../public/art/catalog-front.json' with {type:'json'};
 import {composeLayers} from '../src/doodle-renderer.js';
 import {GARMENTS} from '../src/wardrobe.js';
 import {normalizeOutfit,addLayer} from '../src/layers.js';
@@ -41,7 +41,7 @@ test('female feet use different complete views and every shoe retains its origin
  for(const gender of ['female','male'])for(const id of ['sneakers','loafers','wallabee']){
   const layers=composeLayers(normalizeOutfit({top:'tee',bottom:'shorts',shoes:id}),gender);
   const shoes=layers.filter(l=>l.id.startsWith('shoe-'));
-  assert.equal(shoes.length,gender==='female'?2:1);
+  assert.equal(shoes.length,2);
   for(const shoe of shoes){assert.equal(shoe.clip,undefined);assert.ok(Math.abs(shoe.dest[2]/shoe.dest[3]-shoe.image.rect[2]/shoe.image.rect[3])<1e-9);}
   if(gender==='female')assert.notDeepEqual(shoes[0].image.rect,shoes[1].image.rect);
  }
@@ -52,4 +52,26 @@ test('tinting a female garment restores the original head and skin in preview an
  const layers=composeLayers(look,'female');
  assert.equal(layers.find(l=>l.id==='visible-upper').color,'#9b4c50');
  assert.ok(layers.find(l=>l.id==='natural-skin').clipPolygons.length>1);
+});
+test('each mood replaces the complete near-frontal head without a face patch',()=>{
+ for(const gender of ['male','female']){
+  const outfit=normalizeOutfit({top:'tee',bottom:'regular-denim'});
+  const heads=['good','hot','cold'].map(mood=>composeLayers(outfit,gender,mood).find(l=>l.id==='expression'));
+  assert.equal(new Set(heads.map(l=>l.image.rect.join(','))).size,3);
+  for(const head of heads){assert.equal(head.image.src,'/art/front-faces-v6.png');assert.equal(head.clip,undefined);assert.ok(head.clipWorld);assert.ok(head.dest[3]>80);}
+ }
+});
+
+test('shoes render underneath trousers, never on top of the hems',()=>{
+ const layers=composeLayers(normalizeOutfit({top:'tee',bottom:'regular-denim',shoes:'sneakers'}),'female');
+ assert.ok(layers.findIndex(l=>l.id==='shoe-right')<layers.findIndex(l=>l.id==='bottom'));
+});
+
+test('hoods and longer inner coat hems remain visible outside shorter outer garments',()=>{
+ for(const gender of ['male','female']){
+  const hood=composeLayers(normalizeOutfit({top:'hoodie',outer:'jacket',bottom:'regular-denim'}),gender);
+  assert.ok(hood.find(l=>l.id==='exposed-hood'));
+  let look=normalizeOutfit({top:'long',outer:'coat',bottom:'regular-denim'});look=addLayer(look,'outer','puffer');
+  const layers=composeLayers(look,gender);assert.ok(layers.find(l=>l.id==='exposed-hem'),gender);
+ }
 });

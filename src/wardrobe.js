@@ -1,8 +1,12 @@
 import { outfitLayers, countLayers } from './layers.js';
+import {garmentProfile,clothingWarmth} from './thermal.js';
 
 export const GARMENTS = {
   top: [
     { id:'thermal-top',name:'발열 이너',desc:'옷 안에 입는 얇은 보온 이너',warmth:3,color:'#c6bfb2',fit:'regular'},
+    {id:'sleeveless',name:'슬리브리스',desc:'한여름의 가벼운 한 겹',warmth:0,color:'#eee8db'},
+    {id:'stripe-tee',name:'스트라이프 반소매',desc:'가벼운 코튼',warmth:1,color:'#eee8db'},
+    {id:'linen-shirt',name:'리넨 반소매 셔츠',desc:'통기성이 좋은 여름 셔츠',warmth:1,color:'#eee8db'},
     { id: 'tee', name: '코튼 반소매', desc: '가볍고 산뜻하게', warmth: 1, color: '#eee8db', icon: 'shirt' },
     { id: 'long', name: '롱슬리브', desc: '부드러운 기본 이너', warmth: 2, color: '#eee8db', icon: 'shirt' },
     { id: 'knit', name: '크루넥 니트', desc: '포근한 울 레이어', warmth: 4, color: '#d4c2a8', icon: 'shirt' },
@@ -30,7 +34,7 @@ export const GARMENTS = {
     { id: 'denim', name: '와이드 데님', desc: '어디에나 어울리는', warmth: 3, color: '#657c8a', icon: 'columns-2',fit:'wide',legacy:true },
     { id: 'slacks', name: '와이드 슬랙스', desc: '깔끔한 드레이프', warmth: 2, color: '#6a6964', icon: 'columns-2',fit:'wide' },
     { id: 'fleece', name: '기모 팬츠', desc: '다리까지 포근하게', warmth: 5, color: '#858270', icon: 'columns-2',fit:'straight' },
-    { id: 'cargo', name: '벌룬 카고', desc: '입체적인 포켓과 볼륨', warmth: 3, color: '#666b5e', icon: 'columns-2',fit:'wide' },
+    { id: 'cargo', name: '벌룬 카고', desc: '입체적인 포켓과 볼륨', warmth: 3, color: '#666b5e', icon: 'columns-2',fit:'wide',legacy:true },
     { id: 'chino', name: '와이드 치노', desc: '빈티지한 코튼 팬츠', warmth: 3, color: '#b1a88d', icon: 'columns-2',fit:'wide',legacy:true },
   ],
   shoes: [
@@ -54,7 +58,8 @@ export const PALETTE = [
 export const garmentColor = (outfit, category) => outfit.colors?.[category] || getGarment(category, outfit[category]).color;
 
 export const getGarment = (category, id) => GARMENTS[category].find(g => g.id === id) || GARMENTS[category][0];
-export const warmth = outfit => outfitLayers(outfit).reduce((total,l)=>total+getGarment(l.category,l.id).warmth,0)+(outfit.scarf?2:0)+(outfit.hat==='beanie'?1:0);
+export const warmth = outfit => clothingWarmth(outfitLayers(outfit),getGarment)+(outfit.scarf?2:0)+(outfit.hat==='beanie'?1:0);
+for(const items of Object.values(GARMENTS))for(const item of items)item.profile=garmentProfile(item.id);
 export const targetWarmth = (feels, sensitivity = 0) => Math.max(1, Math.min(24, (25 - feels) * 0.68 + Number(sensitivity) * 2));
 
 export function recommend(feels, sensitivity = 0) {

@@ -1,5 +1,5 @@
-const CACHE = 'closer-shell-v4';
-const CORE = ['/', '/icon.svg', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest', '/art/doodle-base-v3.png', '/art/doodle-base-v4.png', '/art/doodle-male-parts-v3.png','/art/doodle-female-parts-v3.png','/art/doodle-extras-v3.png','/art/doodle-female-upper-v4.png','/art/doodle-female-coat-v4.png','/art/doodle-pose-shoes-v4.png'];
+const CACHE = 'closer-shell-v6';
+const CORE = ['/', '/icon.svg', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest', '/art/front-base-v6.png', '/art/front-male-upper-v6.png','/art/front-female-upper-v6.png','/art/front-faces-v6.png','/art/front-lower-v6.png','/art/front-hoods-v6.png','/art/doodle-extras-v3.png'];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);

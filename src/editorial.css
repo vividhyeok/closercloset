@@ -60,3 +60,11 @@
 }
 
 .fashion-app .wardrobe-piece{touch-action:pan-x pan-y;cursor:pointer}.wardrobe-drawer{overscroll-behavior-x:contain}.quick-details .look-counter,.quick-note,.canvas-caption,.calibration-footnote,.shelf-heading p{display:none}.feeling-options{display:flex;flex-wrap:wrap}.feeling-options button{flex:1 1 30%}@media(max-width:700px){.fashion-app .wardrobe-drawer{overflow-x:auto;touch-action:pan-x}.quick-details .period-switch{grid-row:auto}}
+
+.wardrobe-clear{min-width:105px;min-height:96px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;font-size:12px;color:#62665c;background:#efeee8;align-self:start;flex:0 0 105px}.wardrobe-clear svg{width:23px;height:23px}.wardrobe-piece[aria-pressed="true"] .piece-art{outline:1px solid #717867;outline-offset:-1px}.wardrobe-piece[aria-pressed="true"] .piece-caption small{color:#45533b;font-size:11px;letter-spacing:0}.fashion-app .wardrobe-piece{touch-action:pan-x!important}
+
+.fashion-wordmark>.closet-word{font-size:.43em;letter-spacing:-.5px;margin:0 0 1px 5px;align-self:flex-end}.welcome-intro{padding:25px 4px 8px}.welcome-brand{font:650 25px "DM Sans",sans-serif;letter-spacing:-1px;color:#292c27;margin-bottom:45px}.welcome-intro h2{font-size:30px;font-weight:500;line-height:1.5;letter-spacing:-1px;margin:0 0 22px}.welcome-intro>p:not(.welcome-brand){font-size:14px;line-height:2;color:#73796c;word-break:keep-all}.welcome-intro .primary-button{margin-top:38px;min-height:50px;font-size:15px;width:100%;justify-content:space-between}
+
+.fashion-app .wardrobe-tabs .category-clear{margin-left:auto;min-width:36px;min-height:44px;display:flex;align-items:center;justify-content:center;padding:8px;color:#70776a}.category-clear svg{width:19px;height:19px}@media(max-width:700px){.fashion-app .wardrobe-tabs button[role="tab"]{flex:1;padding-left:2px;padding-right:2px}.fashion-app .wardrobe-tabs .category-clear{flex:0 0 36px}}
+
+.stack-row .layer-reorder-handle{margin-left:0;min-width:36px;min-height:42px;cursor:grab;touch-action:none;color:#6d7566;font-size:20px}.stack-row.reordering{opacity:.45}.stack-row.reorder-target{box-shadow:0 -2px #737e69}.fashion-app .parts-popover{max-height:350px;overflow-y:auto}.stack-row>span:nth-last-of-type(1){flex:1}.stack-row{gap:6px}.stack-row>button:last-child{flex:0 0 36px}

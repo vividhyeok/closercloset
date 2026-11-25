@@ -3,8 +3,9 @@ import './editorial.css';
 import './peeking.css';
 import './closet.css';
 import { studioShell,wardrobe,layerStackMarkup } from './studio-view.js';
-import { addLayer, normalizeOutfit, outfitLayers, removeLayer,upperLayers } from './layers.js';
+import { addLayer, normalizeOutfit, outfitLayers, removeLayer,upperLayers,moveLayer } from './layers.js';
 import { curatedLook } from './lookbook.js';
+import {dailyLook} from './daily-look.js';
 import { closetView } from './closet-view.js';
 import { createIcons, ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Bookmark, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Cloud, CloudFog, CloudLightning, CloudRain, CloudSun, Coffee, Heart, House, Info, Layers, LocateFixed, MapPin, Menu, Minus, Moon, Plus, RotateCcw, Settings2, Shirt, SlidersHorizontal, Smartphone, Snowflake, Sparkles, Sun, Sunset, Thermometer, Trash2, Umbrella, Wind, X } from 'lucide';
 import { CITIES, fetchForecast, localDate, makeDemo, periodWeather, resolveDateIndex, weatherInfo,validForecastCache } from './weather.js';
@@ -39,7 +40,7 @@ const dateObj = date => new Date(`${date}T12:00:00`);
 const dateLabel = (date, options) => dateObj(date).toLocaleDateString('ko-KR', options);
 const current = () => state.days[state.index];
 const climate = () => periodWeather(current(), state.period);
-const recommendation = () => curatedLook(climate().feels, state.settings.sensitivity);
+const recommendation = () => dailyLook(current(),state.period,state.settings.sensitivity);
 const outfit = () => state.mode === 'edit' && state.custom ? state.custom : recommendation();
 const assessment = () => assess(outfit(), climate().feels, state.settings.sensitivity);
 const isSaved = () => state.looks.some(look => look.date === current().date && JSON.stringify(look.outfit) === JSON.stringify(outfit()) && look.city === state.settings.city.name);
@@ -226,6 +227,7 @@ document.addEventListener('click', event => {
     if (button.dataset.mode === 'edit' && state.mode !== 'edit') {const {lookId,...parts}=recommendation();state.custom=normalizeOutfit(parts);}
     state.mode = button.dataset.mode; state.page='home';state.peekTop=0;state.peekBottom=0; render();
   } else if (action === 'period') { state.period = button.dataset.period; render(); }
+  else if(action==='clear-category'){const category=button.dataset.category;state.custom=addLayer(outfit(),category,'none');state.peekTop=0;state.peekBottom=0;render();}
   else if (action === 'garment') { return; }
   else if (action === 'fit') { state.fit=button.dataset.fit;render(); }
   else if (action === 'weather-details') openWeatherDetails();
@@ -363,6 +365,45 @@ function openInstall() {
   openModal(`<div class="modal-header"><span class="eyebrow">ALWAYS A LITTLE CLOSER</span><button class="icon-button" data-action="close-modal" aria-label="닫기">${icon('x')}</button></div><div class="modal-intro"><h2 id="modal-title">내일 아침에도,<br>바로 만나요<span>.</span></h2><p>홈 화면에 추가하면 앱처럼 빠르게 열 수 있어요.</p></div><div class="install-instructions"><div><span>iPhone · Safari</span><p>하단의 <b>공유 버튼</b>을 누르고<br><b>홈 화면에 추가</b>를 선택해 주세요.</p></div><div><span>Android · Chrome</span><p>우측 상단 <b>⋮ 메뉴</b>에서<br><b>홈 화면에 추가</b> 또는 <b>앱 설치</b>를 선택해 주세요.</p></div><div><span>데스크톱 · Chrome / Edge</span><p>주소창의 <b>설치 아이콘</b> 또는 브라우저 메뉴에서<br><b>앱으로 설치</b>를 선택하면 바로가기가 생겨요.</p></div></div><p class="field-help">설치 메뉴는 HTTPS로 배포한 사이트에서 사용할 수 있어요.</p><button class="primary-button" data-action="close-modal">좋아요 ${icon('check')}</button>`);
 }
 
+let stackDrag=null;
+document.addEventListener('pointerdown',event=>{
+ const handle=event.target.closest('[data-reorder-key]');if(!handle||event.button>0)return;
+ const row=handle.closest('[data-layer-key]');handle.setPointerCapture(event.pointerId);event.preventDefault();
+ stackDrag={handle,row,key:handle.dataset.reorderKey,region:row.dataset.layerRegion,context:handle.closest('.calibration-studio')?calibrationSession:null,target:null,after:false};row.classList.add('reordering');
+});
+document.addEventListener('pointermove',event=>{
+ if(!stackDrag)return;event.preventDefault();
+ document.querySelectorAll('.reorder-target').forEach(el=>el.classList.remove('reorder-target'));
+ const row=document.elementFromPoint(event.clientX,event.clientY)?.closest('[data-layer-key]');
+ if(row&&row.dataset.layerRegion===stackDrag.region&&row!==stackDrag.row){stackDrag.target=row.dataset.layerKey;const box=row.getBoundingClientRect();stackDrag.after=event.clientY>box.top+box.height/2;row.classList.add('reorder-target');}
+ const list=stackDrag.row.parentElement,box=list.getBoundingClientRect();if(event.clientY<box.top+28)list.scrollTop-=9;else if(event.clientY>box.bottom-28)list.scrollTop+=9;
+},{passive:false});
+document.addEventListener('pointerup',()=>{
+ if(!stackDrag)return;const d=stackDrag;stackDrag=null;d.row.classList.remove('reordering');document.querySelectorAll('.reorder-target').forEach(el=>el.classList.remove('reorder-target'));
+ if(!d.target)return;if(d.context)d.context.reorder(d.key,d.target,d.after);else{state.custom=moveLayer(outfit(),d.key,d.target,d.after);state.peekTop=0;state.peekBottom=0;render();}
+});
+document.addEventListener('pointercancel',()=>{stackDrag?.row.classList.remove('reordering');stackDrag=null;});
+document.addEventListener('keydown',event=>{
+ const handle=event.target.closest('[data-reorder-key]');if(!handle||!['ArrowUp','ArrowDown'].includes(event.key))return;event.preventDefault();
+ const row=handle.closest('[data-layer-key]'),rows=[...row.parentElement.querySelectorAll('[data-layer-key]')].filter(r=>r.dataset.layerRegion===row.dataset.layerRegion),index=rows.indexOf(row),target=rows[index+(event.key==='ArrowUp'?-1:1)];if(!target)return;
+ const context=handle.closest('.calibration-studio')?calibrationSession:null;if(context)context.reorder(row.dataset.layerKey,target.dataset.layerKey,event.key==='ArrowDown');else{state.custom=moveLayer(outfit(),row.dataset.layerKey,target.dataset.layerKey,event.key==='ArrowDown');render();}
+});
+
+let trayPan=null,lastTrayPan=0;
+document.addEventListener('pointerdown',event=>{
+ const tray=event.target.closest('.wardrobe-drawer');
+ if(!tray||event.pointerType!=='mouse'||event.button!==0||tray.scrollWidth<=tray.clientWidth)return;
+ trayPan={tray,x:event.clientX,scroll:tray.scrollLeft,moved:false,id:event.pointerId};
+});
+document.addEventListener('pointermove',event=>{
+ if(!trayPan||event.pointerId!==trayPan.id)return;
+ const dx=event.clientX-trayPan.x;if(Math.abs(dx)>5)trayPan.moved=true;
+ if(trayPan.moved){trayPan.tray.scrollLeft=trayPan.scroll-dx;event.preventDefault();}
+});
+document.addEventListener('pointerup',()=>{if(trayPan?.moved)lastTrayPan=Date.now();trayPan=null;});
+document.addEventListener('pointercancel',()=>{trayPan=null;});
+document.addEventListener('click',event=>{if(Date.now()-lastTrayPan<250&&event.target.closest('.wardrobe-drawer')){event.preventDefault();event.stopImmediatePropagation();}},true);
+
 document.addEventListener('pointerdown', event => {
   const piece = event.target.closest('[data-draggable]');
   if (!piece || event.button > 0) return;
@@ -411,6 +452,7 @@ document.addEventListener('pointerup', () => {
 });
 document.addEventListener('pointercancel',()=>{drag?.ghost?.remove();drag=null;document.body.classList.remove('is-dragging');document.querySelectorAll('.accepting-drop,.drop-hover').forEach(el=>el.classList.remove('accepting-drop','drop-hover'));});
 
+document.addEventListener('keydown',event=>{if((event.key==='Enter'||event.key===' ')&&event.target.matches('[data-draggable]')){event.preventDefault();event.stopImmediatePropagation();event.target.click();}},true);
 let keyboardPiece=null;
 document.addEventListener('keydown',event=>{
   const piece=event.target.closest('[data-draggable]');
@@ -496,9 +538,11 @@ function calibrationForm(draft,day){
     });
     calibrationSession={
       canvas:()=>document.querySelector('#calibration-canvas'),
+      reorder:(key,target,after)=>{worn=moveLayer(worn,key,target,after);peekTop=0;peekBottom=0;draw();},
       drop:(category,id)=>{worn=addLayer(worn,category,id);peekTop=category==='top'?outfitLayers(worn).filter(l=>l.category==='outer').length:0;peekBottom=0;draw();animatePeek();},
       action:(action,button)=>{
-        if(action==='toggle-piece'){const category=button.dataset.category,id=button.dataset.id;const found=outfitLayers(worn).filter(l=>l.category===category&&l.id===id).at(-1);worn=found?removeLayer(worn,found.key):addLayer(worn,category,id);if(['hat','shoes'].includes(category)&&worn[category]===id&&button.classList.contains('selected'))worn[category]='none';}
+        if(action==='clear-category'){worn=addLayer(worn,button.dataset.category,'none');peekTop=0;peekBottom=0;}
+        else if(action==='toggle-piece'){const category=button.dataset.category,id=button.dataset.id;const found=outfitLayers(worn).filter(l=>l.category===category&&l.id===id).at(-1);worn=found?removeLayer(worn,found.key):addLayer(worn,category,id);if(['hat','shoes'].includes(category)&&worn[category]===id&&button.classList.contains('selected'))worn[category]='none';}
         else if(action==='category'){drawer.category=button.dataset.category;drawer.fit='all';}
         else if(action==='fit')drawer.fit=button.dataset.fit;
         else if(action==='color')worn.colors={...worn.colors,[button.dataset.category]:button.dataset.color||null};
@@ -530,7 +574,11 @@ function calibrationForm(draft,day){
 window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installPrompt = event; });
 window.addEventListener('appinstalled', () => { installPrompt = null; toast('closer.를 홈 화면에 담았어요. 내일도 만나요!'); });
 render();
-if (!state.settings.onboarded) openSettings();
+if (!state.settings.onboarded) {
+  openModal(`<div class="welcome-intro"><p class="welcome-brand">closer closet</p><h2 id="modal-title">오늘 날씨에,<br>뭘 입으면 좋을까?</h2><p>기온만 보고 옷을 고르기는 어려우니까.<br>내 지역의 날씨와 내가 느끼는 추위에 맞춰,<br>어떤 옷을 몇 겹 입을지 함께 살펴봐요.</p><button class="primary-button" id="welcome-start">내 옷차림 알아보기 ${icon('arrow-right')}</button></div>`,true);
+  document.querySelector('#welcome-start').addEventListener('click',()=>openSettings());
+}
+
 else loadWeather();
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
