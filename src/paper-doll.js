@@ -1,1 +1,1 @@
-export {character,garmentDrawing,composeLayers,drawDoll,loadAtlas} from './doodle-renderer.js';
+export { character, garmentDrawing, composeLayers, drawDoll, loadAtlas } from './doodle-renderer.js';

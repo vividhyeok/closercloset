@@ -14,7 +14,21 @@ export const CITIES = [
 ];
 
 export function localDate(date = new Date(), timezone = 'Asia/Seoul') {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone || 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date);
+  } catch {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date);
+  }
 }
 
 export function weatherInfo(code) {
@@ -22,35 +36,71 @@ export function weatherInfo(code) {
   if (code <= 2) return { label: '구름 조금', icon: 'cloud-sun' };
   if (code === 3) return { label: '흐림', icon: 'cloud' };
   if (code <= 48) return { label: '안개', icon: 'cloud-fog' };
-  if (code >= 71 && code <= 77 || code === 85 || code === 86) return { label: '눈', icon: 'snowflake' };
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { label: '눈', icon: 'snowflake' };
   if (code >= 95) return { label: '뇌우', icon: 'cloud-lightning' };
   return { label: '비', icon: 'cloud-rain' };
 }
 
 export function parseForecast(data) {
-  const daily = data.daily;
-  if (!daily?.time?.length || !data.hourly?.time?.length) throw new Error('예보 데이터가 비어 있어요.');
+  const daily = data?.daily;
+  if (!daily?.time?.length || !data?.hourly?.time?.length) {
+    throw new Error('예보 데이터가 비어 있어요.');
+  }
   const valid = value => typeof value === 'number' && Number.isFinite(value);
-  return daily.time.map((date, i) => {
-    const hours = data.hourly.time.flatMap((time, h) => typeof time==='string' && time.startsWith(date) && valid(data.hourly.temperature_2m?.[h]) && valid(data.hourly.apparent_temperature?.[h]) ? [{
-      hour: Number(time.slice(11, 13)), temp: data.hourly.temperature_2m[h],
-      feels: data.hourly.apparent_temperature[h], rain: data.hourly.precipitation_probability?.[h] ?? 0,
-      code: data.hourly.weather_code?.[h] ?? daily.weather_code[i],
-    }] : []);
-    return {
-      date, min: daily.temperature_2m_min[i], max: daily.temperature_2m_max[i],
-      feelsMin: daily.apparent_temperature_min[i], feelsMax: daily.apparent_temperature_max[i],
-      code: daily.weather_code?.[i], rain: valid(daily.precipitation_probability_max?.[i])?daily.precipitation_probability_max[i]:null,
-      wind: valid(daily.wind_speed_10m_max?.[i])?daily.wind_speed_10m_max[i]:null, hours,
-    };
-  }).filter(day => typeof day.date==='string' && /^\d{4}-\d{2}-\d{2}$/.test(day.date) && valid(day.min) && valid(day.max) && valid(day.feelsMin) && valid(day.feelsMax) && valid(day.code) && day.hours.length);
+  return daily.time
+    .map((date, i) => {
+      const hours = data.hourly.time.flatMap((time, h) =>
+        typeof time === 'string' &&
+        time.startsWith(date) &&
+        valid(data.hourly.temperature_2m?.[h]) &&
+        valid(data.hourly.apparent_temperature?.[h])
+          ? [
+              {
+                hour: Number(time.slice(11, 13)),
+                temp: data.hourly.temperature_2m[h],
+                feels: data.hourly.apparent_temperature[h],
+                rain: data.hourly.precipitation_probability?.[h] ?? 0,
+                code: data.hourly.weather_code?.[h] ?? daily.weather_code[i],
+              },
+            ]
+          : []
+      );
+      return {
+        date,
+        min: daily.temperature_2m_min[i],
+        max: daily.temperature_2m_max[i],
+        feelsMin: daily.apparent_temperature_min[i],
+        feelsMax: daily.apparent_temperature_max[i],
+        code: daily.weather_code?.[i],
+        rain: valid(daily.precipitation_probability_max?.[i]) ? daily.precipitation_probability_max[i] : null,
+        wind: valid(daily.wind_speed_10m_max?.[i]) ? daily.wind_speed_10m_max[i] : null,
+        hours,
+      };
+    })
+    .filter(
+      day =>
+        typeof day.date === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(day.date) &&
+        valid(day.min) &&
+        valid(day.max) &&
+        valid(day.feelsMin) &&
+        valid(day.feelsMax) &&
+        valid(day.code) &&
+        day.hours.length > 0
+    );
 }
 
 export async function fetchForecast(city, signal) {
   const query = new URLSearchParams({
-    latitude: String(city.lat), longitude: String(city.lon), timezone: city.timezone || 'Asia/Seoul', forecast_days: '16', past_days: '1',
-    daily: 'weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_probability_max,wind_speed_10m_max',
-    hourly: 'temperature_2m,apparent_temperature,precipitation_probability,weather_code', wind_speed_unit: 'ms',
+    latitude: String(city.lat),
+    longitude: String(city.lon),
+    timezone: city.timezone || 'Asia/Seoul',
+    forecast_days: '16',
+    past_days: '1',
+    daily:
+      'weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_probability_max,wind_speed_10m_max',
+    hourly: 'temperature_2m,apparent_temperature,precipitation_probability,weather_code',
+    wind_speed_unit: 'ms',
   });
   const response = await fetch(`https://api.open-meteo.com/v1/forecast?${query}`, { signal });
   if (!response.ok) throw new Error(`날씨 서버 응답 ${response.status}`);
@@ -59,7 +109,12 @@ export async function fetchForecast(city, signal) {
   const today = localDate(new Date(), data.timezone || 'Asia/Seoul');
   const days = parsed.filter(day => day.date >= today);
   if (!days.length) throw new Error('지원하는 예보가 없어요.');
-  return { days, yesterday: parsed.filter(day => day.date < today).at(-1) || null, timezone: data.timezone, fetchedAt: Date.now() };
+  return {
+    days,
+    yesterday: parsed.filter(day => day.date < today).at(-1) || null,
+    timezone: data.timezone || 'Asia/Seoul',
+    fetchedAt: Date.now(),
+  };
 }
 
 export function makeDemo() {
@@ -71,11 +126,23 @@ export function makeDemo() {
     const min = max - 8;
     const code = [1, 3, 0, 1, 61, 3, 71, 0][i % 8];
     return {
-      date: localDate(date), min, max, feelsMin: min - 3, feelsMax: max - 2,
-      code, rain: code === 61 ? 80 : code === 71 ? 60 : 10, wind: 2.8 + i % 3,
+      date: localDate(date),
+      min,
+      max,
+      feelsMin: min - 3,
+      feelsMax: max - 2,
+      code,
+      rain: code === 61 ? 80 : code === 71 ? 60 : 10,
+      wind: 2.8 + (i % 3),
       hours: Array.from({ length: 24 }, (_, h) => {
-        const temp = min + (max - min) * (0.5 + 0.5 * Math.cos((h - 14) * Math.PI / 12));
-        return { hour: h, temp: Math.round(temp), feels: Math.round(temp - 2), rain: code === 61 ? 80 : 10, code };
+        const temp = min + (max - min) * (0.5 + 0.5 * Math.cos(((h - 14) * Math.PI) / 12));
+        return {
+          hour: h,
+          temp: Math.round(temp),
+          feels: Math.round(temp - 2),
+          rain: code === 61 ? 80 : 10,
+          code,
+        };
       }),
     };
   });
@@ -84,15 +151,37 @@ export function makeDemo() {
 export function periodWeather(day, period = 'day') {
   const ranges = { all: [8, 22], morning: [7, 10], day: [11, 17], evening: [18, 22] };
   const [start, end] = ranges[period] || ranges.day;
-  const hours = day.hours.filter(h => h.hour >= start && h.hour <= end);
-  const feels = hours.length ? hours.reduce((s, h) => s + h.feels, 0) / hours.length : (day.feelsMax + day.feelsMin) / 2;
-  return { feels: Math.round(feels), temp: Math.round(hours.length ? hours.reduce((s, h) => s + h.temp, 0) / hours.length : day.max) };
+  const hours = (day?.hours || []).filter(h => h.hour >= start && h.hour <= end);
+  const feels = hours.length
+    ? hours.reduce((s, h) => s + h.feels, 0) / hours.length
+    : ((day?.feelsMax ?? 10) + (day?.feelsMin ?? 4)) / 2;
+  const temp = hours.length ? hours.reduce((s, h) => s + h.temp, 0) / hours.length : (day?.max ?? 10);
+  return { feels: Math.round(feels), temp: Math.round(temp) };
 }
 
 export function resolveDateIndex(days, date) {
   return days.findIndex(day => day.date === date);
 }
 
-export function validForecastCache(value){
-  return !!value&&Number.isFinite(value.fetchedAt)&&value.fetchedAt<=Date.now()+60000&&Array.isArray(value.days)&&value.days.length>0&&value.days.length<=17&&value.days.every(day=>typeof day.date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(day.date)&&Number.isFinite(day.min)&&Number.isFinite(day.max)&&Number.isFinite(day.feelsMin)&&Number.isFinite(day.feelsMax)&&Array.isArray(day.hours)&&day.hours.length>0&&day.hours.every(h=>Number.isFinite(h.hour)&&Number.isFinite(h.temp)&&Number.isFinite(h.feels)));
+export function validForecastCache(value) {
+  return (
+    !!value &&
+    Number.isFinite(value.fetchedAt) &&
+    value.fetchedAt <= Date.now() + 60000 &&
+    Array.isArray(value.days) &&
+    value.days.length > 0 &&
+    value.days.length <= 17 &&
+    value.days.every(
+      day =>
+        typeof day.date === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(day.date) &&
+        Number.isFinite(day.min) &&
+        Number.isFinite(day.max) &&
+        Number.isFinite(day.feelsMin) &&
+        Number.isFinite(day.feelsMax) &&
+        Array.isArray(day.hours) &&
+        day.hours.length > 0 &&
+        day.hours.every(h => Number.isFinite(h.hour) && Number.isFinite(h.temp) && Number.isFinite(h.feels))
+    )
+  );
 }
