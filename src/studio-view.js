@@ -286,9 +286,10 @@ export function wardrobe(state, api, look, result = null, cl = null) {
             `<button role="tab" aria-selected="${category === id}" data-action="category" data-category="${id}" class="${category === id ? 'selected' : ''}">${name}</button>`
         )
         .join('')}
-      <button class="category-clear" data-action="clear-category" data-category="${category}" aria-label="${categories[category]} 모두 벗기기">
-        비우기
-      </button>
+      <div class="wardrobe-tab-actions">
+        <button class="category-clear" data-action="clear-category" data-category="${category}" aria-label="${categories[category]} 모두 벗기기">비우기</button>
+        <button class="category-clear mobile-reset-only" data-action="reset-look" aria-label="입힌 옷 모두 초기화">초기화</button>
+      </div>
     </div>
     ${
       category === 'bottom'

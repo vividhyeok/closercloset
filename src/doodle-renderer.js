@@ -188,13 +188,9 @@ export function composeLayers(outfit, gender = 'female', mood = 'good') {
 
   const under = upper ? uppers.slice(0, uppers.indexOf(upper)) : [];
   const visibleHem = upper ? art(gender, upper.id)?.hem : null;
-  const innerDest = image => {
-    const [x, y, w, h] = image.dest;
-    return [205 + (x - 205) * 0.94, y, w * 0.94, h];
-  };
 
   if (outer && outer !== 'none') {
-    const topY = gender === 'male' ? 100 : 114;
+    const topY = gender === 'male' ? 96 : 106;
     const bottomY = Math.min((visibleHem || 276) - 3, 274);
     const torsoClip = [
       [168, topY],
@@ -209,12 +205,12 @@ export function composeLayers(outfit, gender = 'female', mood = 'good') {
       const image = art(gender, hidden.id);
       if (image) {
         add(hidden.id, 'inner', pose.sleeved, {
-          dest: innerDest(image),
+          dest: image.dest,
           clipWorld:
             hidden.id === 'coat'
               ? [
-                  [153, topY],
-                  [252, topY],
+                  [153, gender === 'male' ? 100 : 114],
+                  [252, gender === 'male' ? 100 : 114],
                   [254, 250],
                   [145, 250],
                 ]
@@ -384,8 +380,9 @@ export function garmentDrawing(category, id, color, gender = 'female') {
   const original = art(gender, id);
   const image = original?.thumbnail || original;
   if (!image) return '<span class="empty-garment">—</span>';
-  const ratio = image.rect[2] / image.rect[3];
-  return `<span class="raster-garment" aria-hidden="true"><span style="width:${Math.min(100, ratio * 100)}%;height:${Math.min(100, 100 / ratio)}%;${styleFor(image)}${color ? `filter:${COLOR_FILTERS[color] || 'none'};` : ''}"></span></span>`;
+  const [ , , w, h] = image.rect;
+  const ratio = (w / h).toFixed(5);
+  return `<span class="raster-garment" aria-hidden="true"><span style="width:min(100cqw,calc(100cqh * ${ratio}));height:min(100cqh,calc(100cqw / ${ratio}));aspect-ratio:${w}/${h};${styleFor(image)}${color ? `filter:${COLOR_FILTERS[color] || 'none'};` : ''}"></span></span>`;
 }
 
 const images = new Map();
