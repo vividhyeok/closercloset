@@ -89,35 +89,114 @@ export function recommend(feels, sensitivity = 0) {
 }
 
 export function assess(outfit, feels, sensitivity = 0) {
-  const currentWarmth = warmth(outfit);
+  const layers = outfitLayers(outfit);
+  const hasUpper = layers.some(l => l.category === 'top' || l.category === 'outer');
+  const lowers = layers.filter(l => l.category === 'bottom');
+  const hasLower = lowers.length > 0;
+  const onlyShorts = hasLower && lowers.every(l => l.id === 'shorts');
+  const onlySleeveless =
+    hasUpper &&
+    !layers.some(l => l.category === 'outer' && l.id !== 'none') &&
+    layers.filter(l => l.category === 'top').every(l => l.id === 'sleeveless');
+
+  let effectiveWarmth = warmth(outfit);
+  // Realistic bare-limb exposure adjustment in cool/cold weather
+  if (!hasUpper) effectiveWarmth -= 8;
+  if (!hasLower) effectiveWarmth -= 7;
+  if (onlyShorts && feels < 16) effectiveWarmth -= Math.min(5, (16 - feels) * 0.35);
+  if (onlySleeveless && feels < 20) effectiveWarmth -= Math.min(4, (20 - feels) * 0.3);
+
   const target = targetWarmth(feels, sensitivity);
-  const diff = currentWarmth - target;
+  const diff = effectiveWarmth - target;
+  const meter = Math.max(4, Math.min(96, Math.round(50 + diff * 5.2)));
+
+  if (!hasUpper || !hasLower) {
+    return {
+      mood: feels < 22 ? 'cold' : 'good',
+      label: !hasUpper && !hasLower ? '상의와 하의를 입혀주세요' : !hasUpper ? '상의가 비어 있어요' : '하의가 비어 있어요',
+      short: !hasUpper ? '상의를 추가해 주세요' : '하의를 추가해 주세요',
+      detail: '외출용 코디를 완성하려면 상의와 하의를 모두 선택해 주세요.',
+      score: meter,
+      meter,
+      diff,
+    };
+  }
+
+  if (diff < -6.2) {
+    return {
+      mood: 'cold',
+      label: '많이 추워요',
+      short: '보온 레이어가 더 필요해요',
+      detail: '체감온도에 비해 옷이 얇아요. 도톰한 아우터나 발열 이너, 머플러를 더해보세요.',
+      score: Math.max(5, Math.round(50 + diff * 4)),
+      meter,
+      diff,
+    };
+  }
   if (diff < -3) {
     return {
       mood: 'cold',
-      label: '조금 추울 것 같아요',
-      short: '한 겹 더, 포근하게',
-      detail: '두꺼운 아우터나 이너를 더해 보세요. 목도리도 도움이 돼요.',
+      label: '살짝 쌀쌀해요',
+      short: '한 겹 더 입으면 좋겠어요',
+      detail: onlyShorts && feels < 16
+        ? '반바지로는 다리가 쌀쌀할 수 있어요. 긴 바지로 바꾸거나 겉옷을 더해보세요.'
+        : '바람이 불면 서늘할 수 있어요. 가벼운 아우터나 이너를 한 겹 추가해 보세요.',
       score: Math.max(5, Math.round(50 + diff * 4)),
+      meter,
+      diff,
+    };
+  }
+  if (diff > 7.5) {
+    return {
+      mood: 'hot',
+      label: '많이 더워요',
+      short: '옷차림이 꽤 두꺼워요',
+      detail: '활동하면 금방 더워질 수 있어요. 아우터를 가볍게 바꾸거나 안쪽 겹을 덜어보세요.',
+      score: Math.min(95, Math.round(50 + diff * 4)),
+      meter,
       diff,
     };
   }
   if (diff > 4) {
     return {
       mood: 'hot',
-      label: '조금 더울 것 같아요',
-      short: '한 겹 덜어도 좋아요',
-      detail: '아우터를 가볍게 바꾸거나 이너를 한 겹 덜어 보세요.',
+      label: '다소 더울 수 있어요',
+      short: '한 겹 덜어도 충분해요',
+      detail: '낮이나 실내에서는 더울 수 있어요. 벗기 쉬운 겉옷 위주로 조절해 보세요.',
       score: Math.min(95, Math.round(50 + diff * 4)),
+      meter,
+      diff,
+    };
+  }
+  if (diff < -1.1) {
+    return {
+      mood: 'good',
+      label: '선선하고 쾌적해요',
+      short: '가볍고 산뜻한 밸런스',
+      detail: '걷거나 활동할 때 답답하지 않고 쾌적하게 입기 좋은 두께예요.',
+      score: Math.round(50 + diff * 3),
+      meter,
+      diff,
+    };
+  }
+  if (diff > 1.4) {
+    return {
+      mood: 'good',
+      label: '포근하고 따뜻해요',
+      short: '여유 있게 따뜻한 조합',
+      detail: '추위를 타거나 바람이 부는 시간대에도 포근하게 보내기 좋아요.',
+      score: Math.round(50 + diff * 3),
+      meter,
       diff,
     };
   }
   return {
     mood: 'good',
-    label: '이 정도면 딱 좋아요',
-    short: '오늘도, 기분 좋은 외출',
-    detail: '선택한 시간대의 체감온도와 잘 맞는 조합이에요.',
+    label: '온도에 딱 맞아요',
+    short: '오늘 날씨에 이상적인 밸런스',
+    detail: '선택한 시간대의 체감온도와 의류 보온감이 정확히 맞아떨어져요.',
     score: Math.round(50 + diff * 3),
+    meter,
     diff,
   };
 }

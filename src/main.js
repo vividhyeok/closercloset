@@ -1,45 +1,8 @@
 import './styles.css';
-import { studioShell, wardrobe, layerStackMarkup } from './studio-view.js';
-import { addLayer, normalizeOutfit, outfitLayers, removeLayer, upperLayers, moveLayer, sameOutfit } from './layers.js';
+import { studioShell, wardrobe, layerStackMarkup, layerFanMarkup } from './studio-view.js';
+import { addLayer, countLayers, normalizeOutfit, outfitLayers, removeLayer, upperLayers, lowerLayers, moveLayer, sameOutfit } from './layers.js';
 import { dailyLook } from './daily-look.js';
 import { closetView } from './closet-view.js';
-import {
-  createIcons,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUpRight,
-  Bookmark,
-  CalendarDays,
-  Check,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  Cloud,
-  CloudFog,
-  CloudLightning,
-  CloudRain,
-  CloudSun,
-  Coffee,
-  Info,
-  Layers,
-  LocateFixed,
-  MapPin,
-  Minus,
-  Moon,
-  Plus,
-  RotateCcw,
-  Share2,
-  SlidersHorizontal,
-  Smartphone,
-  Snowflake,
-  Sparkles,
-  Sun,
-  Sunset,
-  Thermometer,
-  Trash2,
-  X,
-} from 'lucide';
 import {
   CITIES,
   fetchForecast,
@@ -50,47 +13,10 @@ import {
   weatherInfo,
   validForecastCache,
 } from './weather.js';
-import { assess, getGarment, layerCount, calibrationOffset } from './wardrobe.js';
+import { assess, layerCount, calibrationOffset } from './wardrobe.js';
 import { character } from './paper-doll.js';
 import { createLookImage } from './share-card.js';
 import { LOOKS_KEY, SETTINGS_KEY, readStorage, sanitizeLooks, validSettings, writeStorage } from './storage.js';
-
-const icons = {
-  ArrowLeft,
-  ArrowRight,
-  ArrowUpRight,
-  Bookmark,
-  CalendarDays,
-  Check,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  Cloud,
-  CloudFog,
-  CloudLightning,
-  CloudRain,
-  CloudSun,
-  Coffee,
-  Info,
-  Layers,
-  LocateFixed,
-  MapPin,
-  Minus,
-  Moon,
-  Plus,
-  RotateCcw,
-  Share2,
-  SlidersHorizontal,
-  Smartphone,
-  Snowflake,
-  Sparkles,
-  Sun,
-  Sunset,
-  Thermometer,
-  Trash2,
-  X,
-};
 
 const initialSettings = readStorage(SETTINGS_KEY);
 const state = {
@@ -98,6 +24,7 @@ const state = {
     ? initialSettings
     : { gender: 'female', city: CITIES[0], sensitivity: 0, onboarded: false },
   days: makeDemo(),
+  yesterday: null,
   index: 0,
   period: 'day',
   mode: 'quick',
@@ -130,7 +57,6 @@ let stackDrag = null;
 
 const escape = value =>
   String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const icon = (name, className = '') => `<i data-lucide="${name}" class="${className}" aria-hidden="true"></i>`;
 const round = n => Math.round(n);
 const current = () => state.days[state.index] || state.days[0];
 const climate = () => periodWeather(current(), state.period);
@@ -142,8 +68,19 @@ const isSaved = () =>
     look => look.date === current().date && look.city === state.settings.city.name && sameOutfit(look.outfit, outfit())
   );
 
-function hydrateIcons() {
-  createIcons({ icons, attrs: { 'stroke-width': 1.6 } });
+function makeFallbackYesterday(today) {
+  const base = today || state.days[0];
+  const d = new Date(`${base.date}T12:00:00+09:00`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return {
+    ...structuredClone(base),
+    date: localDate(d),
+    min: base.min - 1,
+    max: base.max - 1,
+    feelsMin: base.feelsMin - 1,
+    feelsMax: base.feelsMax - 1,
+    hours: (base.hours || []).map(h => ({ ...h, temp: h.temp - 1, feels: h.feels - 1 })),
+  };
 }
 
 function toast(message) {
@@ -152,7 +89,7 @@ function toast(message) {
   if (!el) return;
   el.textContent = message;
   el.classList.add('visible');
-  toastTimer = setTimeout(() => el.classList.remove('visible'), 4200);
+  toastTimer = setTimeout(() => el.classList.remove('visible'), 3800);
 }
 
 function render() {
@@ -161,8 +98,7 @@ function render() {
   const scrollTop = prevDrawer?.scrollTop || 0;
   const railPrevScroll = document.querySelector('.date-rail')?.scrollLeft || 0;
 
-  app.innerHTML = studioShell(state, { icon, current, climate, outfit, assessment, isSaved, savedPage });
-  hydrateIcons();
+  app.innerHTML = studioShell(state, { current, climate, outfit, assessment, isSaved, savedPage });
   bindHome(railPrevScroll);
 
   const nextDrawer = document.querySelector('.fashion-app .wardrobe-drawer');
@@ -174,10 +110,10 @@ function render() {
 
 function hourlySection(day) {
   const periods = [
-    { hour: 8, name: '아침 출근길', icon: 'coffee' },
-    { hour: 13, name: '낮의 산책', icon: 'sun' },
-    { hour: 18, name: '저녁 약속', icon: 'sunset' },
-    { hour: 22, name: '집으로 가는 길', icon: 'moon' },
+    { hour: 8, name: '아침 08:00' },
+    { hour: 13, name: '낮 13:00' },
+    { hour: 18, name: '저녁 18:00' },
+    { hour: 22, name: '밤 22:00' },
   ];
   return `
     <section class="hourly-section">
@@ -188,11 +124,8 @@ function hourlySection(day) {
             if (!h) return '';
             return `
             <div class="hour-card">
-              ${icon(p.icon)}
-              <div>
-                <span>${p.name} <small>${p.hour}:00</small></span>
-                <strong>${round(h.temp)}°<span>체감 ${round(h.feels)}°</span></strong>
-              </div>
+              <span>${p.name} · ${weatherInfo(h.code).label}</span>
+              <strong>${round(h.temp)}°<span>체감 ${round(h.feels)}°</span></strong>
             </div>`;
           })
           .join('')}
@@ -201,16 +134,18 @@ function hourlySection(day) {
 }
 
 function savedPage() {
-  return closetView(state.looks, icon);
+  return closetView(state.looks);
 }
 
 function bindHome(prevRailScroll = 0) {
   const scene = document.querySelector('#swipe-scene');
   let start = null;
+  let moved = false;
 
   scene?.addEventListener('pointerdown', event => {
-    if (event.target.closest('button, .parts-popover')) return;
+    if (event.target.closest('button, .layer-fan-overlay')) return;
     start = { x: event.clientX, y: event.clientY };
+    moved = false;
   });
 
   scene?.addEventListener('pointerup', event => {
@@ -218,7 +153,8 @@ function bindHome(prevRailScroll = 0) {
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
     start = null;
-    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3 && !state.partsOpen) {
+      moved = true;
       navigate(dx < 0 ? 1 : -1);
     }
   });
@@ -228,22 +164,18 @@ function bindHome(prevRailScroll = 0) {
   });
 
   scene?.addEventListener('click', event => {
-    if (state.mode !== 'edit' || event.target.closest('button, .parts-popover')) return;
-    clearTimeout(peekTimer);
-    const box = scene.getBoundingClientRect();
-    const lower = (event.clientY - box.top) / box.height > 0.57;
-    const count = lower
-      ? outfitLayers(outfit()).filter(l => l.category === 'bottom').length
-      : upperLayers(outfit()).length;
-    if (count < 2) {
-      state.partsOpen = !state.partsOpen;
-      render();
+    if (moved) {
+      moved = false;
       return;
     }
-    const key = lower ? 'peekBottom' : 'peekTop';
-    state[key] = (state[key] + 1) % count;
+    if (event.target.closest('button, .fan-card')) return;
+    clearTimeout(peekTimer);
+    state.partsOpen = !state.partsOpen;
+    if (!state.partsOpen) {
+      state.peekTop = 0;
+      state.peekBottom = 0;
+    }
     render();
-    animatePeek();
   });
 
   scene?.addEventListener('keydown', event => {
@@ -302,8 +234,8 @@ function setDay(index) {
   render();
   document
     .querySelector('.character-wrap')
-    ?.animate([{ opacity: 0.35, transform: 'translateX(14px)' }, { opacity: 1, transform: 'translateX(0)' }], {
-      duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 240,
+    ?.animate([{ opacity: 0.35, transform: 'translateX(12px)' }, { opacity: 1, transform: 'translateX(0)' }], {
+      duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 220,
       easing: 'ease-out',
     });
 }
@@ -324,6 +256,7 @@ async function loadWeather() {
     if (request !== controller) return;
     const date = current().date;
     state.days = response.days;
+    state.yesterday = response.yesterday || makeFallbackYesterday(response.days[0]);
     state.index = Math.max(0, resolveDateIndex(state.days, date));
     state.fetchedAt = response.fetchedAt;
     state.timezone = response.timezone;
@@ -340,6 +273,7 @@ async function loadWeather() {
     }
     if (validForecastCache(cached) && Date.now() - cached.fetchedAt < 6 * 60 * 60 * 1000 && cached.days.some(d => d.date === today)) {
       state.days = cached.days.filter(d => d.date >= today);
+      state.yesterday = cached.yesterday || makeFallbackYesterday(state.days[0]);
       state.index = 0;
       state.source = 'cached';
       state.fetchedAt = cached.fetchedAt;
@@ -347,6 +281,7 @@ async function loadWeather() {
       toast('연결이 어려워 최근 저장된 예보를 보여드려요.');
     } else {
       state.days = makeDemo();
+      state.yesterday = makeFallbackYesterday(state.days[0]);
       state.index = 0;
       state.source = 'demo';
       state.fetchedAt = null;
@@ -391,26 +326,28 @@ function saveLook() {
   }
   state.looks = updated;
   render();
-  toast(state.source === 'demo' ? '예시 코디를 내 옷장에 담았어요.' : '오늘의 코디를 내 옷장에 담았어요.');
+  toast(state.source === 'demo' ? '예시 코디를 내 옷장에 담았어요.' : '코디를 내 옷장에 담았어요.');
 }
 
 function animatePeek() {
   document.querySelectorAll('.doodle-visible-upper, .doodle-bottom').forEach(el =>
-    el.animate([{ opacity: 0.2, transform: 'translateX(10px)' }, { opacity: 1, transform: 'translateX(0)' }], {
-      duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 200,
+    el.animate([{ opacity: 0.25, transform: 'translateX(8px)' }, { opacity: 1, transform: 'translateX(0)' }], {
+      duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180,
       easing: 'ease-out',
     })
   );
 }
 
-// Close open layer popover when clicking outside
-document.addEventListener('click', event => {
-  if (state.partsOpen && !event.target.closest('.layer-info')) {
-    state.partsOpen = false;
-    document.querySelector('.layer-info')?.classList.remove('open');
-    document.querySelector('[data-action="parts"]')?.setAttribute('aria-expanded', 'false');
-  }
-});
+function shiftLayer(look, key, dir) {
+  const layers = outfitLayers(look);
+  const currentLayer = layers.find(l => l.key === key);
+  if (!currentLayer) return look;
+  const regionList = currentLayer.category === 'bottom' ? lowerLayers(look) : upperLayers(look);
+  const idx = regionList.findIndex(l => l.key === key);
+  const target = regionList[idx + dir];
+  if (!target) return look;
+  return moveLayer(look, key, target.key, dir > 0);
+}
 
 // Main click delegate
 document.addEventListener('click', event => {
@@ -441,6 +378,8 @@ document.addEventListener('click', event => {
   if (!button || button.disabled) return;
   const action = button.dataset.action;
 
+  if (action === 'fan-backdrop' && event.target !== button) return;
+
   if (button.closest('.calibration-studio') && calibrationSession) {
     calibrationSession.action(action, button);
     return;
@@ -455,6 +394,8 @@ document.addEventListener('click', event => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   } else if (action === 'settings') {
     openSettings();
+  } else if (action === 'calibrate-direct') {
+    calibrationForm(structuredClone(state.settings), 'today');
   } else if (action === 'prev') {
     navigate(-1);
   } else if (action === 'next') {
@@ -503,8 +444,29 @@ document.addEventListener('click', event => {
     base.colors = { ...base.colors, [button.dataset.category]: button.dataset.color || null };
     state.custom = base;
     render();
-  } else if (action === 'parts') {
+  } else if (action === 'parts' || action === 'fan-backdrop') {
     state.partsOpen = !state.partsOpen;
+    if (!state.partsOpen) {
+      state.peekTop = 0;
+      state.peekBottom = 0;
+    }
+    render();
+  } else if (action === 'fan-peek') {
+    const region = button.dataset.region;
+    const peek = Number(button.dataset.peek) || 0;
+    if (region === 'bottom') state.peekBottom = peek;
+    else state.peekTop = peek;
+    render();
+    animatePeek();
+  } else if (action === 'fan-move') {
+    if (state.mode !== 'edit') {
+      const { lookId, ...parts } = recommendation();
+      state.custom = normalizeOutfit(parts);
+      state.mode = 'edit';
+    }
+    state.custom = shiftLayer(outfit(), button.dataset.key, Number(button.dataset.dir));
+    state.peekTop = 0;
+    state.peekBottom = 0;
     render();
   } else if (action === 'peek-reset') {
     clearTimeout(peekTimer);
@@ -513,7 +475,14 @@ document.addEventListener('click', event => {
     render();
     animatePeek();
   } else if (action === 'remove-layer') {
+    if (state.mode !== 'edit') {
+      const { lookId, ...parts } = recommendation();
+      state.custom = normalizeOutfit(parts);
+      state.mode = 'edit';
+    }
     state.custom = removeLayer(outfit(), button.dataset.key);
+    state.peekTop = 0;
+    state.peekBottom = 0;
     render();
   } else if (action === 'share') {
     openShare();
@@ -711,7 +680,6 @@ function openModal(content, mandatory = false) {
   modalRoot.innerHTML = `<div class="modal-backdrop" ${mandatory ? '' : 'data-action="close-modal"'}><section class="modal ${mandatory ? 'onboarding-modal' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title">${content}</section></div>`;
   document.body.classList.add('modal-open');
   app.inert = true;
-  hydrateIcons();
   modalRoot.querySelector('input, button, select')?.focus({ preventScroll: true });
 }
 
@@ -753,17 +721,16 @@ function openSettings(override) {
 
   openModal(
     `<div class="modal-header">
-      <a class="brand" aria-label="closer">closer<span>.</span></a>
-      ${onboarding ? '<span class="onboarding-step">LET’S GET CLOSER</span>' : `<button class="icon-button" data-action="close-modal" aria-label="설정 닫기">${icon('x')}</button>`}
+      <a class="brand" aria-label="closer">closer</a>
+      ${onboarding ? '<span class="onboarding-step">SETUP</span>' : `<button class="text-close-btn" data-action="close-modal" aria-label="설정 닫기">닫기 ×</button>`}
     </div>
     <div class="modal-intro">
-      <span class="section-kicker">${onboarding ? '처음 오셨군요. 반가워요!' : '조금 더 나에게 맞게'}</span>
-      <h2 id="modal-title">${onboarding ? '당신의 하루를<br>조금 더 알려주세요<span>.</span>' : '나의 작은 취향들<span>.</span>'}</h2>
-      <p>${onboarding ? '딱 두 가지만 고르면, 옷 고민은 조금 가벼워질 거예요.' : '설정은 이 브라우저에 저장돼요. 언제든 바꿀 수 있어요.'}</p>
+      <h2 id="modal-title">${onboarding ? '캐릭터와 지역을 선택해 주세요' : '환경 설정'}</h2>
+      <p>${onboarding ? '선택한 지역의 체감온도에 맞춰 매일의 옷차림을 제안합니다.' : '설정은 이 브라우저에 자동 저장됩니다.'}</p>
     </div>
     <form id="settings-form">
       <fieldset class="settings-field">
-        <legend><span>01</span> 어떤 캐릭터와 함께할까요?</legend>
+        <legend><span>01</span> 캐릭터</legend>
         <div class="gender-options">
           ${[
             ['female', '여성'],
@@ -773,56 +740,54 @@ function openSettings(override) {
               ([gender, name]) => `
             <label class="gender-option">
               <input type="radio" name="gender" value="${gender}" ${draft.gender === gender ? 'checked' : ''} required />
-              <div class="gender-art">${character({ top: 'knit', outer: 'jacket', bottom: 'denim', scarf: false }, gender, 'good', `setup-${gender}`)}</div>
-              <span><b>${name}</b><span class="gender-check">${icon('check')}</span></span>
+              <div class="gender-art">${character({ top: 'knit', outer: 'jacket', bottom: 'regular-denim', scarf: false }, gender, 'good', `setup-${gender}`)}</div>
+              <span><b>${name}</b><span class="gender-check">✓</span></span>
             </label>`
             )
             .join('')}
         </div>
-        <p class="field-help">캐릭터 외형을 고르는 설정이에요. 모든 의류를 자유롭게 입혀볼 수 있어요.</p>
       </fieldset>
       <fieldset class="settings-field">
-        <legend><span>02</span> 어느 곳의 날씨를 볼까요?</legend>
+        <legend><span>02</span> 지역</legend>
         <label class="sr-only" for="city-select">거주 지역</label>
         <div class="city-select-wrap">
-          ${icon('map-pin')}
           <select id="city-select" name="city">
             ${CITIES.map((city, i) => `<option value="${i}" ${city.name === draft.city.name ? 'selected' : ''}>${city.name}, ${city.region}</option>`).join('')}
             ${!CITIES.some(c => c.name === draft.city.name) ? `<option value="gps" selected>${escape(draft.city.name)}</option>` : ''}
           </select>
-          ${icon('chevron-down')}
+          <span class="select-caret" aria-hidden="true">▾</span>
         </div>
-        <button type="button" class="gps-button" id="gps-button">${icon('locate-fixed')}현재 위치로 설정하기</button>
-        <p class="field-help">버튼을 누르면 위치를 한 번만 요청해요. 날씨 조회에 필요한 대략적인 좌표만 기기에 저장해요.</p>
+        <button type="button" class="gps-button" id="gps-button">현재 위치로 설정</button>
         <p id="gps-status" class="gps-status" role="status"></p>
       </fieldset>
       <div class="calibration-invite">
         <div>
-          ${icon('thermometer')}
-          <span>어제의 나에게 물어볼까요?</span>
-          ${draft.calibration ? '<span class="calibrated-badge">맞춤 설정 완료</span>' : '<span class="optional-badge">선택</span>'}
+          <span>어제·오늘 옷차림으로 더위/추위 감도 맞추기</span>
+          ${draft.calibration ? '<span class="calibrated-badge">맞춤 완료</span>' : '<span class="optional-badge">선택</span>'}
         </div>
-        <p>${draft.calibration ? '어제 입은 옷과 느낀 온도를 바탕으로 추천을 맞췄어요.' : '어제 입었던 옷, 그리고 그때의 느낌.<br>막연한 체질 대신 나의 실제 경험으로 맞춰요.'}</p>
+        <p>${
+          draft.calibration
+            ? `${draft.calibration.date} (체감 ${draft.calibration.feels}°) 옷차림 경험이 반영되어 있습니다.`
+            : '어제나 오늘 실제 입었던 옷과 더위·추위 느낌을 지정하면 추천 보온 기준이 정교해집니다.'
+        }</p>
         <button type="button" class="calibration-start" id="start-calibration">
-          ${draft.calibration ? '어제의 옷차림 다시 맞추기' : '어제의 옷차림으로 맞추기'}
-          ${icon('arrow-right')}
+          <span>${draft.calibration ? '체감 감도 다시 맞추기' : '어제·오늘 옷차림으로 감도 맞추기'}</span>
+          <span aria-hidden="true">→</span>
         </button>
       </div>
       <button type="submit" class="primary-button settings-submit">
-        ${onboarding ? '나에게 맞는 옷차림 만나기' : '설정 저장하기'}
-        ${icon('arrow-right')}
+        <span>${onboarding ? '시작하기' : '설정 저장'}</span>
+        <span aria-hidden="true">→</span>
       </button>
-      <p class="settings-save-note">${onboarding ? '다음부터는 바로 오늘의 옷차림으로 연결돼요.' : '설정 변경 시 해당 지역의 날씨를 새로 불러와요.'}</p>
     </form>
     ${
       onboarding
         ? ''
         : `<details class="data-management">
-            <summary>기록 및 데이터 관리 ${icon('chevron-down')}</summary>
-            <p>설정과 코디는 이 기기에만 저장되어 있어요.</p>
-            <button type="button" id="clear-looks">${icon('trash-2')}저장한 코디 모두 삭제 <span>${state.looks.length}개</span></button>
-            <button type="button" id="reset-settings">${icon('rotate-ccw')}초기 설정으로 되돌리기</button>
-            <button type="button" id="demo-weather">${icon('sparkles')}예시 날씨 둘러보기</button>
+            <summary>데이터 관리 <span>▾</span></summary>
+            <button type="button" id="clear-looks">저장한 코디 모두 삭제 <span>${state.looks.length}개</span></button>
+            <button type="button" id="reset-settings">초기 설정으로 되돌리기</button>
+            <button type="button" id="demo-weather">예시 날씨 둘러보기</button>
           </details>`
     }`,
     onboarding
@@ -857,7 +822,7 @@ function openSettings(override) {
         const select = document.querySelector('#city-select');
         select.querySelector('option[value="gps"]')?.remove();
         select.add(new Option('내 주변 · 현재 위치', 'gps', true, true));
-        status.textContent = '위치를 확인했어요. 이 주변의 날씨로 준비할게요.';
+        status.textContent = '현재 위치 좌표를 확인했어요.';
         gps.disabled = false;
       },
       error => {
@@ -881,20 +846,20 @@ function openSettings(override) {
     closeModal();
     render();
     loadWeather();
-    if (!saved) toast('이번에는 설정을 적용했지만 기기에 저장하지 못했어요. 브라우저 저장 설정을 확인해 주세요.');
-    else if (!onboarding) toast('설정을 저장했어요. 나에게 맞는 날씨를 준비할게요.');
+    if (!saved) toast('설정을 적용했지만 기기 저장소에 기록하지 못했어요.');
+    else if (!onboarding) toast('설정을 저장했어요.');
   });
 
   document.querySelector('#start-calibration')?.addEventListener('click', () => {
     draft.gender = new FormData(form).get('gender');
-    openCalibration(draft);
+    calibrationForm(draft, 'yesterday', true);
   });
 
   document.querySelector('#clear-looks')?.addEventListener('click', () =>
     confirmAction(
-      '저장한 코디를 모두 지울까요?',
-      '옷장의 코디만 삭제해요. 캐릭터와 지역 설정은 그대로 유지돼요. 삭제한 코디는 되돌릴 수 없어요.',
-      '코디 모두 삭제',
+      '저장한 코디를 모두 삭제할까요?',
+      '옷장의 코디만 삭제되며 캐릭터와 지역 설정은 유지됩니다.',
+      '모두 삭제',
       () => {
         if (!writeStorage(LOOKS_KEY, [])) {
           toast('삭제 내용을 저장하지 못했어요.');
@@ -910,9 +875,9 @@ function openSettings(override) {
 
   document.querySelector('#reset-settings')?.addEventListener('click', () =>
     confirmAction(
-      '처음부터 다시 설정할까요?',
-      '캐릭터·지역·온도 취향과 날씨 캐시를 초기화해요. 저장한 코디는 옷장에 남겨둘게요.',
-      '설정 초기화',
+      '초기 설정으로 되돌릴까요?',
+      '캐릭터·지역·체감 감도와 날씨 캐시를 초기화합니다. 저장한 코디는 유지됩니다.',
+      '초기화',
       () => {
         try {
           Object.keys(localStorage)
@@ -942,6 +907,7 @@ function openSettings(override) {
     request = null;
     state.demo = true;
     state.days = makeDemo();
+    state.yesterday = makeFallbackYesterday(state.days[0]);
     state.index = 0;
     state.source = 'demo';
     state.fetchedAt = null;
@@ -949,15 +915,15 @@ function openSettings(override) {
     closeModal();
     state.page = 'home';
     render();
-    toast('예시 날씨예요. 새로고침하면 실제 예보로 돌아가요.');
+    toast('예시 날씨 모드입니다.');
   });
 }
 
 function confirmAction(title, description, label, action) {
   openModal(
     `<div class="modal-header">
-      <span class="eyebrow">A FRESH START</span>
-      <button class="icon-button" id="confirm-cancel-top" aria-label="취소">${icon('x')}</button>
+      <span class="eyebrow">CONFIRM</span>
+      <button class="text-close-btn" id="confirm-cancel-top" aria-label="취소">닫기 ×</button>
     </div>
     <div class="modal-intro">
       <h2 id="modal-title">${title}</h2>
@@ -981,19 +947,18 @@ function openInstall() {
   }
   openModal(
     `<div class="modal-header">
-      <span class="eyebrow">ALWAYS A LITTLE CLOSER</span>
-      <button class="icon-button" data-action="close-modal" aria-label="닫기">${icon('x')}</button>
+      <span class="eyebrow">INSTALL</span>
+      <button class="text-close-btn" data-action="close-modal" aria-label="닫기">닫기 ×</button>
     </div>
     <div class="modal-intro">
-      <h2 id="modal-title">내일 아침에도,<br>바로 만나요<span>.</span></h2>
-      <p>홈 화면에 추가하면 앱처럼 빠르게 열 수 있어요.</p>
+      <h2 id="modal-title">홈 화면에 추가하기</h2>
+      <p>앱처럼 전체 화면으로 빠르게 열 수 있어요.</p>
     </div>
     <div class="install-instructions">
-      <div><span>iPhone · Safari</span><p>하단의 <b>공유 버튼</b>을 누르고 <b>홈 화면에 추가</b>를 선택해 주세요.</p></div>
-      <div><span>Android · Chrome</span><p>우측 상단 <b>⋮ 메뉴</b>에서 <b>홈 화면에 추가</b> 또는 <b>앱 설치</b>를 선택해 주세요.</p></div>
-      <div><span>데스크톱 · Chrome / Edge</span><p>주소창의 <b>설치 아이콘</b>에서 <b>앱으로 설치</b>를 선택하면 바로가기가 생겨요.</p></div>
+      <div><span>iPhone · Safari</span><p>하단 공유 버튼을 누르고 <b>홈 화면에 추가</b>를 선택해 주세요.</p></div>
+      <div><span>Android · Chrome</span><p>우측 상단 메뉴에서 <b>홈 화면에 추가</b> 또는 <b>앱 설치</b>를 선택해 주세요.</p></div>
     </div>
-    <button class="primary-button" data-action="close-modal">좋아요 ${icon('check')}</button>`
+    <button class="primary-button" data-action="close-modal">확인</button>`
   );
 }
 
@@ -1002,17 +967,16 @@ function openWeatherDetails() {
   openModal(
     `<div class="modal-header">
       <span class="eyebrow">${day.date} · ${escape(state.settings.city.name)}</span>
-      <button class="icon-button" data-action="close-modal" aria-label="닫기">${icon('x')}</button>
+      <button class="text-close-btn" data-action="close-modal" aria-label="닫기">닫기 ×</button>
     </div>
     <div class="modal-intro">
-      <h2 id="modal-title">하루의 온도 흐름<span>.</span></h2>
-      <p>큰 일교차에는 벗기 쉬운 아우터 한 겹을 챙기는 것이 좋아요.</p>
+      <h2 id="modal-title">시간대별 기온</h2>
+      <p>일교차가 큰 날에는 입고 벗기 편한 아우터를 추천합니다.</p>
     </div>
     ${hourlySection(day)}
     <p class="field-help">${
-      state.source === 'demo' ? '예시 날씨입니다.' : state.source === 'cached' ? '연결이 어려워 저장된 예보를 표시합니다.' : '최신 예보'
-    } · 강수 확률 ${Number.isFinite(day.rain) ? `${day.rain}%` : '정보 없음'} · 바람 ${Number.isFinite(day.wind) ? `${day.wind.toFixed(1)}m/s` : '정보 없음'}</p>
-    <p class="field-help"><a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Weather data by Open-Meteo ↗</a></p>`
+      state.source === 'demo' ? '예시 날씨' : state.source === 'cached' ? '저장된 예보' : '실시간 예보'
+    } · 강수 확률 ${Number.isFinite(day.rain) ? `${day.rain}%` : '-'} · 바람 ${Number.isFinite(day.wind) ? `${day.wind.toFixed(1)}m/s` : '-'}</p>`
   );
 }
 
@@ -1029,19 +993,18 @@ async function openShare(savedLook) {
       };
   openModal(
     `<div class="modal-header">
-      <span class="eyebrow">YOUR OUTFIT, YOUR STORY</span>
-      <button class="icon-button" data-action="close-modal" aria-label="닫기">${icon('x')}</button>
+      <span class="eyebrow">LOOK CARD</span>
+      <button class="text-close-btn" data-action="close-modal" aria-label="닫기">닫기 ×</button>
     </div>
     <div class="modal-intro">
-      <h2 id="modal-title">오늘의 나를,<br>한 장에 담아요<span>.</span></h2>
-      <p>스토리에 어울리는 9:16 이미지로 준비했어요.<br>사진으로 저장하거나 친구에게 공유해 보세요.</p>
+      <h2 id="modal-title">코디 카드 저장 · 공유</h2>
+      <p>9:16 비율의 코디 카드를 이미지로 저장하거나 공유할 수 있습니다.</p>
     </div>
-    <div id="share-preview" class="share-preview"><p>코디 이미지를 만들고 있어요…</p></div>
+    <div id="share-preview" class="share-preview"><p>코디 이미지를 생성하고 있어요…</p></div>
     <div class="share-actions">
-      <button class="primary-button" id="share-native" disabled>${icon('arrow-up-right')}공유하기</button>
-      <a id="share-download" class="secondary-button" aria-disabled="true">PNG 이미지 저장</a>
-    </div>
-    <p class="field-help">공유 메뉴에 보이는 앱으로 보낼 수 있어요. 인스타그램이 표시되지 않으면 이미지를 저장한 뒤 스토리나 DM에 첨부해 주세요.</p>`
+      <button class="primary-button" id="share-native" disabled>공유하기</button>
+      <a id="share-download" class="secondary-button" aria-disabled="true">PNG 다운로드</a>
+    </div>`
   );
   const container = document.querySelector('#share-preview');
   try {
@@ -1050,7 +1013,7 @@ async function openShare(savedLook) {
       URL.revokeObjectURL(image.url);
       return;
     }
-    container.innerHTML = `<img src="${image.url}" alt="${snapshot.date}의 나만의 코디 공유 이미지" />`;
+    container.innerHTML = `<img src="${image.url}" alt="${snapshot.date} 코디 공유 이미지" />`;
     const link = document.querySelector('#share-download');
     link.href = image.url;
     link.download = image.filename;
@@ -1060,27 +1023,26 @@ async function openShare(savedLook) {
     const file = new File([image.blob], image.filename, { type: 'image/png' });
     const supported = typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
     share.disabled = false;
-    share.innerHTML = `${icon(supported ? 'arrow-up-right' : 'smartphone')}${supported ? '휴대폰 공유 메뉴 열기' : '이미지 저장 후 공유하기'}`;
-    hydrateIcons();
+    share.textContent = supported ? '공유 메뉴 열기' : '이미지 저장';
 
     share.addEventListener('click', async () => {
       if (!supported) {
         link.click();
-        toast('이미지를 저장한 뒤 원하는 앱에 첨부해 주세요.');
+        toast('이미지를 저장했어요.');
         return;
       }
       try {
         await navigator.share({
           files: [file],
-          title: 'closer. 오늘의 코디',
-          text: '날씨에 맞춰, 나답게 입은 하루.',
+          title: 'closer closet',
+          text: '날씨에 맞춰 입은 오늘의 코디.',
         });
       } catch (error) {
-        if (error.name !== 'AbortError') toast('공유 메뉴를 열지 못했어요. PNG 이미지 저장을 이용해 주세요.');
+        if (error.name !== 'AbortError') toast('PNG 다운로드를 이용해 주세요.');
       }
     });
 
-    link.addEventListener('click', () => toast('코디 이미지를 저장해요. 원하는 앱에 첨부해 주세요.'));
+    link.addEventListener('click', () => toast('코디 이미지를 저장합니다.'));
     const observer = new MutationObserver(() => {
       if (!container.isConnected) {
         URL.revokeObjectURL(image.url);
@@ -1090,61 +1052,44 @@ async function openShare(savedLook) {
     observer.observe(modalRoot, { childList: true });
   } catch {
     if (container?.isConnected) {
-      container.innerHTML = '<p>이미지를 만들지 못했어요. 창을 닫고 다시 시도해 주세요.</p>';
+      container.innerHTML = '<p>이미지를 만들지 못했어요. 다시 시도해 주세요.</p>';
     }
   }
 }
 
-async function openCalibration(draft) {
-  openModal(
-    `<div class="modal-header">
-      <span class="eyebrow">A LITTLE CHECK-IN</span>
-      <button class="icon-button" id="calibration-back" aria-label="설정으로 돌아가기">${icon('arrow-left')}</button>
-    </div>
-    <div class="modal-intro">
-      <h2 id="modal-title">어제 날씨,<br>기억하시나요<span>?</span></h2>
-      <p>${escape(draft.city.name)}의 어제 날씨를 가져오고 있어요.</p>
-    </div>
-    <div class="calibration-loading">${icon('cloud-sun')}어제의 하루를 준비하는 중…</div>`,
-    !state.settings.onboarded
-  );
-  document.querySelector('#calibration-back')?.addEventListener('click', () => openSettings(draft));
-  const marker = document.querySelector('.calibration-loading');
-  try {
-    const data = await fetchForecast(draft.city, AbortSignal.timeout(12000));
-    if (!marker?.isConnected) return;
-    if (!data.yesterday) throw new Error('no yesterday');
-    calibrationForm(draft, data.yesterday);
-  } catch {
-    if (!marker?.isConnected) return;
-    marker.innerHTML =
-      '<p>어제 날씨를 가져오지 못했어요.<br>실제 날씨가 필요해서 지금은 맞춤 보정을 잠시 건너뛸게요.</p><button class="secondary-button" id="calibration-retry">다시 시도</button><button class="primary-button" id="calibration-skip">설정으로 돌아가기</button>';
-    document.querySelector('#calibration-retry')?.addEventListener('click', () => openCalibration(draft));
-    document.querySelector('#calibration-skip')?.addEventListener('click', () => openSettings(draft));
-  }
-}
+function calibrationForm(draft, initialDayTarget = 'today', fromSettings = false) {
+  const todayObj = state.days[0] || makeDemo()[0];
+  const yesterdayObj = state.yesterday || makeFallbackYesterday(todayObj);
+  let dayTarget = draft.calibration?.dayTarget || initialDayTarget;
+  const activeDay = () => (dayTarget === 'yesterday' ? yesterdayObj : todayObj);
 
-function calibrationForm(draft, day) {
-  let worn = normalizeOutfit(draft.calibration?.outfit || { layers: [], scarf: false });
-  let period = draft.calibration?.period || 'day';
-  let showStack = false;
+  let worn = normalizeOutfit(
+    draft.calibration?.outfit || (state.mode === 'edit' && state.custom ? state.custom : recommendation())
+  );
+  let period = draft.calibration?.period || state.period || 'day';
+  let showFan = false;
   let peekTop = 0;
   let peekBottom = 0;
-  const drawer = { category: 'top', fit: 'all', settings: draft };
+  const drawer = { category: 'outer', fit: 'all', settings: draft, partsOpen: false };
 
   function renderStudioMarkup() {
+    const day = activeDay();
     const cl = periodWeather(day, period);
     const layers = outfitLayers(worn);
+    const res = assess(worn, cl.feels, draft.sensitivity || 0);
     return `
       <div class="calibration-studio fashion-app">
         <header class="calibration-top">
-          <button id="calibration-back" class="icon-button" aria-label="설정으로 돌아가기">${icon('arrow-left')}</button>
-          <h2 id="modal-title">어제, 어떻게 입었나요?</h2>
-          <button class="calibration-next" id="calibration-next" ${layers.length ? '' : 'disabled'}>다음 ${icon('arrow-right')}</button>
+          <button id="calibration-back" class="text-close-btn" aria-label="돌아가기">← ${fromSettings ? '설정' : '닫기'}</button>
+          <h2 id="modal-title">날씨와 내 옷차림으로 체감 맞추기</h2>
+          <button class="calibration-next" id="calibration-next" ${layers.length ? '' : 'disabled'}>다음 →</button>
         </header>
         <div class="calibration-context">
-          <span>${escape(draft.city.name)} · ${day.date}</span>
-          <div class="calibration-periods">
+          <div class="calibration-day-switch" role="group" aria-label="기준 날짜">
+            <button data-action="calibration-day" data-day="yesterday" class="${dayTarget === 'yesterday' ? 'selected' : ''}">어제 (${yesterdayObj.date.slice(5)})</button>
+            <button data-action="calibration-day" data-day="today" class="${dayTarget === 'today' ? 'selected' : ''}">오늘 (${todayObj.date.slice(5)})</button>
+          </div>
+          <div class="calibration-periods" role="group" aria-label="시간대">
             ${[
               ['morning', '아침'],
               ['day', '낮'],
@@ -1157,23 +1102,21 @@ function calibrationForm(draft, day) {
               )
               .join('')}
           </div>
-          <strong>체감 ${cl.feels}°</strong>
+          <strong>${escape(draft.city.name)} · 체감 ${cl.feels}°</strong>
         </div>
         <div class="calibration-workspace">
-          <div class="look-scene ${layers.length ? '' : 'waiting-for-clothes'}" id="calibration-canvas" tabindex="0" aria-label="어제 입었던 옷을 선택하는 캔버스">
-            <div class="scene-backdrop-glow" aria-hidden="true"></div>
+          <div class="look-scene ${layers.length ? '' : 'waiting-for-clothes'} ${showFan ? 'fan-open' : ''}" id="calibration-canvas" tabindex="0" aria-label="입었던 옷을 선택하는 캔버스">
             <div class="character-stage">
-              <div class="stage-pedestal" aria-hidden="true"></div>
-              <div class="character-wrap">${character({ ...worn, peekTop, peekBottom }, draft.gender, 'good', 'calibration')}</div>
+              <div class="character-wrap">${character({ ...worn, peekTop, peekBottom }, draft.gender, res.mood, 'calibration')}</div>
             </div>
-            ${!layers.length ? '<p class="empty-canvas-note">어제 입은 옷을 선택해 주세요.</p>' : ''}
+            ${showFan ? layerFanMarkup(worn, true, draft.gender, peekTop, peekBottom) : ''}
+            ${!layers.length && !showFan ? '<p class="empty-canvas-note">어제나 오늘 입은 옷을 선택해 주세요</p>' : ''}
             <div class="calibration-layer-count">
-              <span>상의 ${layerCount(worn)}겹 · 하의 ${outfitLayers(worn).filter(l => l.category === 'bottom').length}겹</span>
-              <button data-action="calibration-stack">${showStack ? '접기' : '입은 옷 보기'} ${icon('layers')}</button>
+              <button data-action="calibration-stack">상의 ${layerCount(worn)} · 하의 ${countLayers(worn, 'bottom')}겹 ${showFan ? '접기' : '펼쳐보기'}</button>
+              <span class="canvas-comfort ${res.mood}"><i></i>${res.label}</span>
             </div>
-            ${showStack ? `<div class="calibration-stack-list">${layerStackMarkup(worn, true, icon)}</div>` : ''}
           </div>
-          <aside class="fashion-shelf"><div class="shelf-body">${wardrobe(drawer, { icon }, worn)}</div></aside>
+          <aside class="fashion-shelf"><div class="shelf-body">${wardrobe({ ...drawer, partsOpen: showFan }, {}, worn, res, cl)}</div></aside>
         </div>
       </div>`;
   }
@@ -1181,25 +1124,18 @@ function calibrationForm(draft, day) {
   function bindStudio() {
     document.querySelector('#calibration-back')?.addEventListener('click', () => {
       calibrationSession = null;
-      openSettings(draft);
+      if (fromSettings) openSettings(draft);
+      else closeModal();
     });
     document.querySelector('#calibration-next')?.addEventListener('click', showFeeling);
     document.querySelector('#calibration-canvas')?.addEventListener('click', event => {
-      if (event.target.closest('button, .calibration-stack-list')) return;
-      const box = event.currentTarget.getBoundingClientRect();
-      const lower = (event.clientY - box.top) / box.height > 0.57;
-      const count = lower
-        ? outfitLayers(worn).filter(l => l.category === 'bottom').length
-        : upperLayers(worn).length;
-      if (count < 2) {
-        showStack = !showStack;
-        draw();
-        return;
+      if (event.target.closest('button, .fan-card')) return;
+      showFan = !showFan;
+      if (!showFan) {
+        peekTop = 0;
+        peekBottom = 0;
       }
-      if (lower) peekBottom = (peekBottom + 1) % count;
-      else peekTop = (peekTop + 1) % count;
       draw();
-      animatePeek();
     });
   }
 
@@ -1211,7 +1147,6 @@ function calibrationForm(draft, day) {
 
     if (modal && modal.querySelector('.calibration-studio')) {
       modal.innerHTML = renderStudioMarkup();
-      hydrateIcons();
       bindStudio();
     } else {
       openModal(renderStudioMarkup(), !state.settings.onboarded);
@@ -1257,14 +1192,33 @@ function calibrationForm(draft, day) {
           worn.colors = { ...worn.colors, [button.dataset.category]: button.dataset.color || null };
         } else if (action === 'remove-layer') {
           worn = removeLayer(worn, button.dataset.key);
+          peekTop = 0;
+          peekBottom = 0;
+        } else if (action === 'fan-move') {
+          worn = shiftLayer(worn, button.dataset.key, Number(button.dataset.dir));
+          peekTop = 0;
+          peekBottom = 0;
+        } else if (action === 'fan-peek') {
+          const region = button.dataset.region;
+          const peek = Number(button.dataset.peek) || 0;
+          if (region === 'bottom') peekBottom = peek;
+          else peekTop = peek;
         } else if (action === 'reset-look') {
           worn = normalizeOutfit({ layers: [], scarf: false });
+          peekTop = 0;
+          peekBottom = 0;
         } else if (action === 'accessory') {
           worn[button.dataset.id] = !worn[button.dataset.id];
         } else if (action === 'calibration-period') {
           period = button.dataset.period;
-        } else if (action === 'calibration-stack') {
-          showStack = !showStack;
+        } else if (action === 'calibration-day') {
+          dayTarget = button.dataset.day;
+        } else if (action === 'calibration-stack' || action === 'parts' || action === 'fan-backdrop') {
+          showFan = !showFan;
+          if (!showFan) {
+            peekTop = 0;
+            peekBottom = 0;
+          }
         } else {
           return;
         }
@@ -1274,39 +1228,42 @@ function calibrationForm(draft, day) {
   }
 
   function showFeeling() {
+    const day = activeDay();
     const cl = periodWeather(day, period);
-    let feeling = null;
+    let feeling = draft.calibration?.feeling || null;
     openModal(
       `<div class="modal-header">
-        <button class="icon-button" id="back-to-dressing" aria-label="어제 옷차림 수정">${icon('arrow-left')}</button>
-        <span class="eyebrow">${day.date} · 체감 ${cl.feels}°</span>
+        <button class="text-close-btn" id="back-to-dressing" aria-label="옷차림 수정">← 옷차림 수정</button>
+        <span class="eyebrow">${dayTarget === 'yesterday' ? '어제' : '오늘'} (${day.date}) · 체감 ${cl.feels}°</span>
       </div>
       <div class="modal-intro">
-        <h2 id="modal-title">그 옷차림으로,<br>어땠나요?</h2>
+        <h2 id="modal-title">이 옷차림으로 어땠나요?</h2>
+        <p>당시 느낀 더위·추위 정도를 선택하면 내 체감 감도에 즉시 반영됩니다.</p>
       </div>
       <div class="calibration-recap">
         <div class="recap-character">${character(worn, draft.gender, 'good', 'recap')}</div>
         <div>
-          ${layerStackMarkup(worn, false, icon)}
-          <span class="recap-count">상의 ${layerCount(worn)} · 하의 ${outfitLayers(worn).filter(l => l.category === 'bottom').length}겹</span>
+          ${layerStackMarkup(worn, false)}
+          <span class="recap-count">상의 ${layerCount(worn)}겹 · 하의 ${countLayers(worn, 'bottom')}겹</span>
         </div>
       </div>
-      <div class="feeling-options">
+      <div class="feeling-options" role="group" aria-label="체감 피드백">
         ${[
-          ['cold', 'snowflake', '추웠다'],
-          ['cool', 'snowflake', '조금 추웠다'],
-          ['good', 'check', '그냥 그랬다'],
-          ['warm', 'sun', '조금 더웠다'],
-          ['hot', 'sun', '더웠다'],
+          ['cold', '추웠다'],
+          ['cool', '조금 추웠다'],
+          ['good', '적당했다'],
+          ['warm', '조금 더웠다'],
+          ['hot', '더웠다'],
         ]
           .map(
-            ([id, ic, name]) =>
-              `<button data-feeling="${id}" aria-pressed="false">${icon(ic)}<span>${name}</span></button>`
+            ([id, name]) =>
+              `<button data-feeling="${id}" class="${feeling === id ? 'selected' : ''}" aria-pressed="${feeling === id}"><span>${name}</span></button>`
           )
           .join('')}
       </div>
-      <button class="primary-button calibration-done" id="calibration-done" disabled>
-        이 경험으로 추천 맞추기 ${icon('arrow-right')}
+      <button class="primary-button calibration-done" id="calibration-done" ${feeling ? '' : 'disabled'}>
+        <span>체감 감도 적용하기</span>
+        <span aria-hidden="true">→</span>
       </button>`,
       !state.settings.onboarded
     );
@@ -1322,14 +1279,20 @@ function calibrationForm(draft, day) {
       })
     );
     document.querySelector('#calibration-done')?.addEventListener('click', () => {
-      const sensitivity = calibrationOffset(worn, cl.feels, feeling);
+      const sensitivity = Math.round(calibrationOffset(worn, cl.feels, feeling) * 10) / 10;
+      const calibration = { outfit: worn, feeling, date: day.date, dayTarget, feels: cl.feels, period };
       calibrationSession = null;
-      openSettings({
-        ...draft,
-        sensitivity: Math.round(sensitivity * 10) / 10,
-        calibration: { outfit: worn, feeling, date: day.date, feels: cl.feels, period },
-      });
-      toast('입었던 모든 겹과 그때의 느낌을 반영했어요. 설정을 저장해 주세요.');
+      if (fromSettings || !state.settings.onboarded) {
+        openSettings({ ...draft, sensitivity, calibration });
+        toast('체감 감도를 계산했어요. 설정을 저장해 주세요.');
+      } else {
+        const updated = { ...state.settings, sensitivity, calibration, onboarded: true };
+        writeStorage(SETTINGS_KEY, updated);
+        state.settings = updated;
+        closeModal();
+        render();
+        toast(`${dayTarget === 'yesterday' ? '어제' : '오늘'} 옷차림 기준으로 더위·추위 감도를 반영했어요.`);
+      }
     });
   }
 
@@ -1343,7 +1306,7 @@ window.addEventListener('beforeinstallprompt', event => {
 
 window.addEventListener('appinstalled', () => {
   installPrompt = null;
-  toast('closer.를 홈 화면에 담았어요. 내일도 만나요!');
+  toast('closer를 홈 화면에 추가했어요.');
 });
 
 render();
@@ -1352,9 +1315,9 @@ if (!state.settings.onboarded) {
   openModal(
     `<div class="welcome-intro">
       <p class="welcome-brand">closer closet</p>
-      <h2 id="modal-title">오늘 날씨에,<br>뭘 입으면 좋을까?</h2>
-      <p>기온만 보고 옷을 고르기는 어려우니까.<br>내 지역의 날씨와 내가 느끼는 추위에 맞춰,<br>어떤 옷을 몇 겹 입을지 함께 살펴봐요.</p>
-      <button class="primary-button" id="welcome-start">내 옷차림 알아보기 ${icon('arrow-right')}</button>
+      <h2 id="modal-title">오늘 날씨에,<br>무엇을 입을까요.</h2>
+      <p>기온과 바람, 그리고 내가 실제로 느낀 더위와 추위에 맞춰<br>어떤 옷을 몇 겹으로 입을지 제안합니다.</p>
+      <button class="primary-button" id="welcome-start"><span>시작하기</span><span aria-hidden="true">→</span></button>
     </div>`,
     true
   );

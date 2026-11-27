@@ -32,20 +32,21 @@ export function composeLayers(outfit, gender = 'female', mood = 'good') {
   const outer = upper?.category === 'outer' ? upper.id : null;
   const customShoes = Boolean(catalog.footwear?.[gender]?.[outfit.shoes]);
   const coherentUpper = !upper || Boolean(art(gender, upper.id)?.includesHead);
-  const lowerClip = customShoes
-    ? [
-        [0, 0.48],
-        [1, 0.48],
-        [1, 0.925],
-        [0, 0.925],
-      ]
-    : [
-        [0, 0.48],
-        [1, 0.48],
-        [1, 1],
-        [0, 1],
-      ];
-  const lowerBodyDest = [pose.dest[0], 264 + ((pose.rect[1] - 480) * 256) / 450, pose.dest[2], (pose.rect[3] * 256) / 450];
+  const clipTop = bottom === 'shorts' ? 0.696 : 0.48;
+  const clipBottom = customShoes ? 0.935 : 1;
+  const lowerClip = [
+    [0, clipTop],
+    [1, clipTop],
+    [1, clipBottom],
+    [0, clipBottom],
+  ];
+  const legOffsetX = bottom === 'shorts' ? (gender === 'female' ? -5.5 : 5) : 0;
+  const lowerBodyDest = [
+    pose.dest[0] + legOffsetX,
+    264 + ((pose.rect[1] - 480) * 256) / 450,
+    pose.dest[2],
+    (pose.rect[3] * 256) / 450,
+  ];
 
   function basePart(id, rect, sourcePolygon) {
     const [bx, by, bw, bh] = pose.rect;
@@ -58,6 +59,25 @@ export function composeLayers(outfit, gender = 'female', mood = 'good') {
       ...(sourcePolygon ? { clip: sourcePolygon.map(p => [(p[0] - x) / w, (p[1] - y) / h]) } : {}),
     });
   }
+
+  const upperHeadClip =
+    gender === 'male'
+      ? [
+          [0, 96],
+          [194, 96],
+          [196, 100],
+          [219, 100],
+          [221, 96],
+          [400, 96],
+          [400, 600],
+          [0, 600],
+        ]
+      : [
+          [0, 113],
+          [400, 113],
+          [400, 600],
+          [0, 600],
+        ];
 
   function add(id, category, dest, options = {}) {
     const image = art(gender, id);
@@ -72,16 +92,7 @@ export function composeLayers(outfit, gender = 'female', mood = 'good') {
       image,
       dest: image.dest || dest,
       color: outfit.colors?.[category],
-      ...(image.includesHead
-        ? {
-            clipWorld: [
-              [0, gender === 'male' ? 100 : 114],
-              [400, gender === 'male' ? 100 : 114],
-              [400, 600],
-              [0, 600],
-            ],
-          }
-        : {}),
+      ...(image.includesHead ? { clipWorld: upperHeadClip } : {}),
       ...options,
       cutouts: [...neckCutouts, ...(options.cutouts || [])],
     };
@@ -167,21 +178,54 @@ export function composeLayers(outfit, gender = 'female', mood = 'good') {
     if (!upper) add('tee', 'base-upper', pose.top, { opacity: 0.25 });
   }
 
-  if (bottom) add(bottom, 'bottom', bottom === 'shorts' ? pose.shorts : pose.bottom);
+  if (gender === 'male') {
+    layers.push({
+      id: 'neck-bridge',
+      image: { src: '/art/front-faces-v6.png', size: [1536, 1024], rect: [252, 381, 118, 50] },
+      dest: [196, 94, 22, 18],
+    });
+  }
 
   const under = upper ? uppers.slice(0, uppers.indexOf(upper)) : [];
   const visibleHem = upper ? art(gender, upper.id)?.hem : null;
   const innerDest = image => {
     const [x, y, w, h] = image.dest;
-    return [210 + (x - 210) * 0.88, y, w * 0.88, h];
+    return [205 + (x - 205) * 0.94, y, w * 0.94, h];
   };
-  const coverInk = poly => {
-    const xs = poly.map(p => p[0]);
-    const ys = poly.map(p => p[1]);
-    const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-    const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-    return poly.map(([x, y]) => [Math.max(0, Math.min(1, cx + (x - cx) * 1.35)), Math.max(0, Math.min(1, cy + (y - cy) * 1.25))]);
-  };
+
+  if (outer && outer !== 'none') {
+    const topY = gender === 'male' ? 100 : 114;
+    const bottomY = Math.min((visibleHem || 276) - 3, 274);
+    const torsoClip = [
+      [168, topY],
+      [238, topY],
+      [236, 240],
+      [228, bottomY],
+      [180, bottomY],
+      [166, 240],
+    ];
+    const innerLayersToDraw = under.filter((l, idx) => l.id === 'coat' || idx === under.length - 1);
+    for (const hidden of innerLayersToDraw) {
+      const image = art(gender, hidden.id);
+      if (image) {
+        add(hidden.id, 'inner', pose.sleeved, {
+          dest: innerDest(image),
+          clipWorld:
+            hidden.id === 'coat'
+              ? [
+                  [153, topY],
+                  [252, topY],
+                  [254, 250],
+                  [145, 250],
+                ]
+              : torsoClip,
+          color: outfit.colors?.[hidden.category],
+        });
+      }
+    }
+  }
+
+  if (bottom) add(bottom, 'bottom', bottom === 'shorts' ? [141, 264, 122, 134] : pose.bottom);
 
   if (visibleHem) {
     for (const inner of under) {
@@ -193,21 +237,6 @@ export function composeLayers(outfit, gender = 'female', mood = 'good') {
           dest: [148.5, 220, 123, image.hem - 220],
           color: outfit.colors?.outer,
         });
-      } else if (image?.hem > visibleHem + 12) {
-        add(inner.id, 'exposed-hem', pose.sleeved, {
-          dest: innerDest(image),
-          clipWorld: [
-            [170, visibleHem - 18],
-            [250, visibleHem - 18],
-            [250, 600],
-            [170, 600],
-          ],
-          cutouts: (image.preserveColor || [])
-            .slice(1)
-            .filter(poly => poly.reduce((sum, p) => sum + p[1], 0) / poly.length > 0.6)
-            .map(coverInk),
-          color: outfit.colors?.[inner.category],
-        });
       }
     }
   }
@@ -215,24 +244,6 @@ export function composeLayers(outfit, gender = 'female', mood = 'good') {
   if (top) add(top, 'visible-upper', top === 'tee' ? pose.top : pose.sleeved, { color: outfit.colors?.top });
   if (outer && outer !== 'none') {
     const dest = outer === 'coat' ? pose.coat : pose.outer;
-    for (const hidden of under) {
-      const image = art(gender, hidden.id);
-      if (image) {
-        add(hidden.id, 'inner', pose.sleeved, {
-          dest: innerDest(image),
-          clipWorld:
-            hidden.id === 'coat'
-              ? [
-                  [153, gender === 'male' ? 100 : 114],
-                  [252, gender === 'male' ? 100 : 114],
-                  [254, 250],
-                  [145, 250],
-                ]
-              : pose.bodyClip,
-          color: outfit.colors?.[hidden.category],
-        });
-      }
-    }
     add(outer, 'visible-upper', dest, { hole: art(gender, outer)?.opening, color: outfit.colors?.outer });
   }
 
@@ -245,45 +256,62 @@ export function composeLayers(outfit, gender = 'female', mood = 'good') {
     });
   }
 
-  if (outfit.scarf) add('scarf', 'accessory', pose.scarf);
-  if (outfit.hat && outfit.hat !== 'none') add(outfit.hat, 'hat', pose.hat);
-
   if (customShoes) {
+    const bareLegs = !bottom || bottom === 'shorts';
     catalog.footwear[gender][outfit.shoes].forEach((image, i) => {
       const box = i ? pose.shoeRight : pose.shoeLeft;
       const [x, y, w, h] = box;
       const scale = Math.min(w / image.rect[2], h / image.rect[3]);
       const sw = image.rect[2] * scale;
       const sh = image.rect[3] * scale;
-      // Heel is registered to the ankle. Preserve the full source aspect ratio.
-      const dest = [i ? x + (w - sw) / 2 : x + w - sw, y + h - sh, sw, sh];
+      const dx = bareLegs
+        ? gender === 'female'
+          ? i
+            ? x + (w - sw) / 2 - 4
+            : x + w - sw + 1.5
+          : i
+            ? x + (w - sw) / 2 - 5.5
+            : x + w - sw - 2.5
+        : i
+          ? x + (w - sw) / 2 - 1.5
+          : x + (w - sw) / 2 - 7;
+      const dest = [dx, y + h - sh, sw, sh];
       layers.push({ id: i ? 'shoe-right' : 'shoe-left', image, dest, color: outfit.colors?.shoes });
     });
   }
 
   const expression = catalog.expressions[gender]?.[mood] || catalog.expressions[gender]?.good;
-  if (gender === 'male') {
-    layers.push({
-      id: 'neck-bridge',
-      image: { src: '/art/front-faces-v6.png', size: [1536, 1024], rect: [252, 381, 118, 50] },
-      dest: [196, 95, 24, 22],
-    });
-  }
+  const expNeckBottom = outfit.scarf ? (gender === 'male' ? 97 : 108) : gender === 'male' ? 101 : 113;
   layers.push({
     id: 'expression',
     image: expression,
     dest: expression.dest,
-    clipWorld: [
-      [0, 0],
-      [400, 0],
-      [400, gender === 'male' ? 97 : 110],
-      [gender === 'male' ? 223 : 228, gender === 'male' ? 97 : 110],
-      [gender === 'male' ? 219 : 224, 126],
-      [gender === 'male' ? 197 : 202, 126],
-      [gender === 'male' ? 193 : 198, gender === 'male' ? 97 : 110],
-      [0, gender === 'male' ? 97 : 110],
-    ],
+    clipWorld:
+      gender === 'male'
+        ? [
+            [0, 0],
+            [400, 0],
+            [400, 95],
+            [220, 95],
+            [219, expNeckBottom],
+            [196, expNeckBottom],
+            [195, 95],
+            [0, 95],
+          ]
+        : [
+            [0, 0],
+            [400, 0],
+            [400, 105],
+            [225, 105],
+            [224, expNeckBottom],
+            [202, expNeckBottom],
+            [201, 105],
+            [0, 105],
+          ],
   });
+
+  if (outfit.scarf) add('scarf', 'accessory', pose.scarf);
+  if (outfit.hat && outfit.hat !== 'none') add(outfit.hat, 'hat', pose.hat);
 
   const feet = layers.filter(l => l.id.startsWith('shoe-'));
   const rest = layers.filter(l => !l.id.startsWith('shoe-'));
