@@ -4,6 +4,54 @@ import catalog from '../public/art/catalog-front.json' with { type: 'json' };
 import { composeLayers } from '../src/doodle-renderer.js';
 import { GARMENTS } from '../src/wardrobe.js';
 import { normalizeOutfit, addLayer } from '../src/layers.js';
+import { ATTACHMENTS } from '../src/attachment-rules.js';
+
+test('hood shares the hoodie registration and does not pass through a covering sweater', () => {
+  for (const gender of ['male', 'female']) {
+    const look = normalizeOutfit({ top: 'hoodie', outer: 'puffer', bottom: 'regular-denim' });
+    const layers = composeLayers(look, gender);
+    const hood = layers.find(l => l.id === 'exposed-hood');
+    assert.equal(hood.image, catalog.garments[gender].hoodie);
+    assert.deepEqual(hood.dest, hood.image.dest);
+    assert.deepEqual(hood.clipWorld, ATTACHMENTS[gender].hood);
+    assert.ok(layers.find(l => l.id === 'visible-upper').cutouts.length);
+    const covered = addLayer(look, 'top', 'knit');
+    assert.equal(composeLayers(covered, gender).some(l => l.id === 'exposed-hood'), false);
+    // Peeking stops at the chosen layer; a hidden outer hood cannot reappear.
+    assert.equal(composeLayers({ ...look, peekTop: 1 }, gender).some(l => l.id === 'exposed-hood'), false);
+  }
+});
+
+test('front hats use registered head positions and trim crown hair in every expression', () => {
+  for (const gender of ['male', 'female']) {
+    for (const hat of ['cap', 'beanie']) {
+      for (const mood of ['cold', 'good', 'hot']) {
+        const layers = composeLayers(normalizeOutfit({ top: 'hoodie', outer: 'puffer', bottom: 'regular-denim', hat }), gender, mood);
+        const head = layers.find(l => l.id === 'expression');
+        const cap = layers.find(l => l.id === 'hat');
+        assert.equal(cap.image.registration, 'front-v8');
+        assert.equal(head.clipWorld[0][1], ATTACHMENTS[gender].hairline);
+        assert.ok(layers.indexOf(cap) > layers.indexOf(head));
+        assert.ok(cap.dest[2] < 90, 'hat must fit the registered head, not the old pose');
+        assert.ok(Math.abs(cap.dest[2] / cap.dest[3] - cap.image.rect[2] / cap.image.rect[3]) < .001);
+      }
+    }
+  }
+});
+
+test('thermal leggings have their own artwork and remain hidden beneath normal trousers', () => {
+  for (const gender of ['male', 'female']) {
+    let look = normalizeOutfit({ top: 'long', bottom: 'regular-denim' });
+    look = addLayer(look, 'bottom', 'thermal-bottom');
+    const worn = composeLayers(look, gender).find(l => l.id === 'bottom');
+    const peeked = composeLayers({ ...look, peekBottom: 1 }, gender).find(l => l.id === 'bottom');
+    assert.equal(worn.image, catalog.garments[gender]['regular-denim']);
+    assert.equal(peeked.image, catalog.garments[gender]['thermal-bottom']);
+    assert.equal(peeked.image.registration, 'front-v8');
+    assert.notEqual(peeked.image.src, worn.image.src);
+    assert.ok(Math.abs(peeked.dest[2] / peeked.dest[3] - peeked.image.rect[2] / peeked.image.rect[3]) < .001);
+  }
+});
 
 test('every available garment has a pose-specific image inside its atlas bounds', () => {
   for (const gender of ['female', 'male']) {

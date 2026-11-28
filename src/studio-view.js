@@ -57,6 +57,15 @@ export function layerFanMarkup(look, editable, gender = 'female', peekTop = 0, p
   return `<div class="layer-fan-overlay spatial-orbit" aria-label="입은 옷의 안쪽부터 바깥쪽 순서"><div class="layer-fan-body">${render(upper,'upper',peekTop)}${render(lower,'bottom',peekBottom)}${!upper.length&&!lower.length?'<p class="fan-empty">옷을 골라 입혀보세요</p>':''}</div><span class="orbit-hint">안쪽부터 · 옷을 눌러 살펴보세요</span></div>`;
 }
 
+function wornRail(look, gender, editable) {
+  return `<div class="worn-rail" aria-label="입고 있는 옷">${['upper','bottom'].map(region=>{
+    const list = region==='upper'?upperLayers(look):lowerLayers(look);
+    return list.map((l,i)=>`<div class="worn-slot"><button data-action="fan-peek" data-region="${region}" data-peek="${list.length-1-i}" aria-label="${getGarment(l.category,l.id).name} 겹 살펴보기">${garmentDrawing(l.category,l.id,look.colors?.[l.category],gender)}<small>${i+1}</small></button>${editable?`<button class="worn-remove" data-action="remove-layer" data-key="${l.key}" aria-label="${getGarment(l.category,l.id).name} 벗기기">×</button>`:''}</div>`).join('');
+  }).join('')}</div>`;
+}
+
+const hudIcon = name => `<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${name==='save'?'<path d="M6 3h12v18l-6-4-6 4z"/>':'<path d="M12 16V3m-4 4 4-4 4 4M5 13v7h14v-7"/>'}</svg>`;
+
 function workspace(state, api) {
   const { current, climate, outfit, assessment, isSaved } = api;
   const day = current();
@@ -101,7 +110,7 @@ function workspace(state, api) {
         : ''
     }
     <section id="daily-look" class="fashion-workspace" role="tabpanel" aria-labelledby="date-${state.index}">
-      <div class="look-scene ${!outfitLayers(look).length ? 'empty-outfit' : ''} ${state.partsOpen ? 'fan-open' : ''}" id="swipe-scene" tabindex="0" aria-label="${studio ? '옷을 선택해 입히는 코디 캔버스' : '좌우로 넘기는 코디 룩북'}">
+      <div data-climate="${result.mood}" class="look-scene ${!outfitLayers(look).length ? 'empty-outfit' : ''} ${state.partsOpen ? 'fan-open' : ''}" id="swipe-scene" tabindex="0" aria-label="${studio ? '옷을 선택해 입히는 코디 캔버스' : '좌우로 넘기는 코디 룩북'}">
         <div class="canvas-weather">
           <strong>${cl.temp}°</strong>
           <span>${weather.label} · 체감 ${cl.feels}°</span>
@@ -109,11 +118,11 @@ function workspace(state, api) {
         </div>
         <div class="canvas-actions">
           <button class="text-pill ${saved ? 'saved' : ''}" data-action="save" aria-label="${saved ? '저장된 코디' : '코디 저장'}">
-            ${saved ? '저장됨' : '저장'}
+            ${hudIcon('save')}
           </button>
-          <button class="text-pill" data-action="share" aria-label="코디 이미지 공유">공유</button>
+          <button class="text-pill" data-action="share" aria-label="코디 이미지 공유">${hudIcon('share')}</button>
         </div>
-        <div class="stage-floor" aria-hidden="true"></div><div class="character-stage">
+        <div class="room-lines" aria-hidden="true"></div><div class="stage-floor" aria-hidden="true"></div>${!state.partsOpen?wornRail(look,state.settings.gender,studio):''}<div class="character-stage">
           <div class="character-wrap">
             ${character({ ...look, peekTop: state.peekTop, peekBottom: state.peekBottom }, state.settings.gender, result.mood, 'main')}
           </div>
@@ -133,7 +142,7 @@ function workspace(state, api) {
               <em>${state.partsOpen ? '모아 입기' : '겹 펼치기 ↗'}</em>
             </button>
           </div>
-          <span class="canvas-comfort ${result.mood}"><i></i>${result.label}</span>
+          <span class="sr-only" role="status">${result.label}</span>
         </div>
         ${
           !studio && !state.partsOpen

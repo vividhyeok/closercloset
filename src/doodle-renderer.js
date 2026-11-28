@@ -1,5 +1,6 @@
 import catalog from '../public/art/catalog-front.json' with { type: 'json' };
 import { getGarment } from './wardrobe.js';
+import { ATTACHMENTS, localPolygon, exposedHood } from './attachment-rules.js';
 import { outfitLayers, upperLayers, lowerLayers } from './layers.js';
 
 export const COLOR_FILTERS = {
@@ -187,6 +188,8 @@ export function composeLayers(outfit, gender = 'female', mood = 'good') {
   }
 
   const under = upper ? uppers.slice(0, uppers.indexOf(upper)) : [];
+  const showHood = exposedHood(under, upper);
+  const attachment = ATTACHMENTS[gender];
   const visibleHem = upper ? art(gender, upper.id)?.hem : null;
 
   if (outer && outer !== 'none') {
@@ -240,16 +243,16 @@ export function composeLayers(outfit, gender = 'female', mood = 'good') {
   if (top) add(top, 'visible-upper', top === 'tee' ? pose.top : pose.sleeved, { color: outfit.colors?.top });
   if (outer && outer !== 'none') {
     const dest = outer === 'coat' ? pose.coat : pose.outer;
-    add(outer, 'visible-upper', dest, { hole: art(gender, outer)?.opening, color: outfit.colors?.outer });
+    add(outer, 'visible-upper', dest, {
+      hole: art(gender, outer)?.opening, color: outfit.colors?.outer,
+      ...(showHood && outer === 'puffer' ? { cutouts: [localPolygon(attachment.pufferCollar, art(gender, outer).dest)] } : {}),
+    });
   }
 
-  if (upper?.id !== 'hoodie' && under.some(l => l.id === 'hoodie')) {
-    layers.push({
-      id: 'exposed-hood',
-      image: catalog.hoods[gender],
-      dest: [gender === 'male' ? 158 : 163, 103, 100, 80],
-      color: outfit.colors?.top,
-    });
+  if (showHood) {
+    const hoodie = art(gender, 'hoodie');
+    layers.push({ id: 'exposed-hood', image: hoodie, dest: hoodie.dest,
+      clipWorld: attachment.hood, cutouts: hoodie.preserveColor || [], color: outfit.colors?.top });
   }
 
   if (customShoes) {
@@ -305,6 +308,12 @@ export function composeLayers(outfit, gender = 'female', mood = 'good') {
             [0, 105],
           ],
   });
+
+  if (outfit.hat && outfit.hat !== 'none') {
+    const head = layers.find(l => l.id === 'expression');
+    head.clipWorld[0][1] = attachment.hairline;
+    head.clipWorld[1][1] = attachment.hairline;
+  }
 
   if (outfit.scarf) add('scarf', 'accessory', pose.scarf);
   if (outfit.hat && outfit.hat !== 'none') add(outfit.hat, 'hat', pose.hat);
@@ -369,8 +378,8 @@ export function character(outfit, gender = 'female', mood = 'good', uid = 'look'
     mood === 'cold'
       ? '<span class="climate-effects cold" aria-hidden="true"><i class="breath"></i><i class="shiver one"></i><i class="shiver two"></i></span>'
       : mood === 'hot'
-        ? '<span class="climate-effects hot" aria-hidden="true"><i class="sweat one"></i><i class="sweat two"></i><i class="heat"></i></span>'
-        : '';
+        ? '<span class="climate-effects hot" aria-hidden="true"><i class="sweat one"></i><i class="sweat two"></i><i class="heat"></i><i class="heat second"></i><i class="flush"></i></span>'
+        : '<span class="climate-effects good" aria-hidden="true"><i class="sparkle one">✦</i><i class="sparkle two">✧</i></span>';
 
   return `<div class="paper-doll fashion-character doodle-character" role="img" aria-label="${gender === 'male' ? '남성' : '여성'} 정면 캐릭터, ${names || '옷을 입히기 전'}" data-mood="${mood}" data-doll-id="${safeUid}"><svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>${definitions.join('')}</defs></svg>${markup}${effects}</div>`;
 }

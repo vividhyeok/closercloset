@@ -1,5 +1,5 @@
 {
-  "version": 7,
+  "version": 8,
   "base": {
     "src": "/art/front-base-v6.png",
     "size": [
@@ -7816,17 +7816,25 @@
         "hem": 277.566037735849
       },
       "thermal-bottom": {
-        "src": "/art/front-lower-v6.png",
+        "src": "/art/registered-accessories-v8.png",
         "size": [
           1536,
           1024
         ],
         "rect": [
-          1208,
-          19,
-          118,
-          243
-        ]
+          184,
+          27,
+          205,
+          482
+        ],
+        "dest": [
+          146,
+          264,
+          113,
+          266
+        ],
+        "registration": "front-v8",
+        "attachment": "legs"
       },
       "sneakers": {
         "src": "/art/front-lower-v6.png",
@@ -7868,30 +7876,46 @@
         ]
       },
       "cap": {
-        "src": "/art/doodle-extras-v3.png",
+        "src": "/art/registered-accessories-v8.png",
         "size": [
-          1266,
-          1242
+          1536,
+          1024
         ],
         "rect": [
-          980,
-          701,
-          237,
-          161
-        ]
+          1081,
+          102,
+          381,
+          330
+        ],
+        "dest": [
+          170,
+          3,
+          68,
+          58.9
+        ],
+        "registration": "front-v8",
+        "attachment": "head"
       },
       "beanie": {
-        "src": "/art/doodle-extras-v3.png",
+        "src": "/art/registered-accessories-v8.png",
         "size": [
-          1266,
-          1242
+          1536,
+          1024
         ],
         "rect": [
-          61,
-          955,
-          207,
-          194
-        ]
+          567,
+          618,
+          397,
+          307
+        ],
+        "dest": [
+          171,
+          6,
+          65,
+          50.26
+        ],
+        "registration": "front-v8",
+        "attachment": "head"
       },
       "scarf": {
         "src": "/art/doodle-extras-v3.png",
@@ -20929,17 +20953,25 @@
         "hem": 288.2131147540983
       },
       "thermal-bottom": {
-        "src": "/art/front-lower-v6.png",
+        "src": "/art/registered-accessories-v8.png",
         "size": [
           1536,
           1024
         ],
         "rect": [
-          1201,
-          285,
-          126,
-          242
-        ]
+          672,
+          39,
+          200,
+          470
+        ],
+        "dest": [
+          146,
+          264,
+          113.2,
+          266
+        ],
+        "registration": "front-v8",
+        "attachment": "legs"
       },
       "sneakers": {
         "src": "/art/front-lower-v6.png",
@@ -20981,30 +21013,46 @@
         ]
       },
       "cap": {
-        "src": "/art/doodle-extras-v3.png",
+        "src": "/art/registered-accessories-v8.png",
         "size": [
-          1266,
-          1242
+          1536,
+          1024
         ],
         "rect": [
-          980,
-          701,
-          237,
-          161
-        ]
+          94,
+          620,
+          348,
+          295
+        ],
+        "dest": [
+          172,
+          6,
+          72,
+          61.03
+        ],
+        "registration": "front-v8",
+        "attachment": "head"
       },
       "beanie": {
-        "src": "/art/doodle-extras-v3.png",
+        "src": "/art/registered-accessories-v8.png",
         "size": [
-          1266,
-          1242
+          1536,
+          1024
         ],
         "rect": [
-          61,
-          955,
-          207,
-          194
-        ]
+          1090,
+          627,
+          387,
+          294
+        ],
+        "dest": [
+          171,
+          6,
+          73,
+          55.46
+        ],
+        "registration": "front-v8",
+        "attachment": "head"
       },
       "scarf": {
         "src": "/art/doodle-extras-v3.png",

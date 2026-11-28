@@ -6,3 +6,5 @@ dist/
 *.log
 .qa/
 output/
+
+/art-review.html

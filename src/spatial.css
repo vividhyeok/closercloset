@@ -77,3 +77,48 @@
  .wardrobe-tabs button[role=tab]{font-size:14px;min-height:44px}
  .orbit-hint{font-size:11px}.spatial-orbit .fan-card-caption small{font-size:11px}
 }
+
+/* Dressing room HUD: controls live beside the doll, rather than in report cards. */
+.fashion-app{background:#f5f3ed}.fashion-header{background:transparent;border:0}
+.fashion-navigation{border:0;gap:8px}.fashion-navigation button{border:0!important;border-radius:24px;min-height:42px;padding:8px 16px}
+.fashion-navigation button.selected{background:#e3e6d8;color:#35422f}.fashion-navigation button:after{display:none}
+.fashion-datebar{border:0}.date-tab.selected{border-radius:18px;background:#e6e7db}
+.look-scene{isolation:isolate;background:radial-gradient(ellipse at 55% 30%,#faf9f3,#e8e5db);transition:background .6s;box-shadow:inset 0 0 60px #c8c4b114}
+.look-scene[data-climate=cold]{background:radial-gradient(ellipse at 55% 35%,#f7faf8,#d9e6e9)}
+.look-scene[data-climate=hot]{background:radial-gradient(ellipse at 55% 35%,#fff8e9,#efd9c6)}
+.room-lines{position:absolute;inset:0;pointer-events:none;opacity:.34;z-index:-1;background:linear-gradient(110deg,transparent 18%,#c6c3b4 18.15%,transparent 18.3%);border-bottom:1px solid #d4d1c0}
+.room-lines:after{content:'';position:absolute;left:0;right:0;bottom:18%;height:1px;background:linear-gradient(90deg,#c6c3b4,transparent 35%,transparent 70%,#c6c3b4);transform:rotate(-4deg)}
+.canvas-actions{flex-direction:column;gap:9px}.canvas-actions .text-pill{display:grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;border-radius:50%;background:#fffdf5dd;box-shadow:0 2px 7px #403f3510;color:#52584a;border:1px solid #deded0}
+.canvas-actions .saved{background:#dfe8cb;color:#485a34}.canvas-actions .saved svg{fill:#aaba86}
+.worn-rail{position:absolute;left:12px;top:110px;bottom:78px;width:56px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;z-index:19;padding:4px 6px}
+.worn-slot{position:relative;flex:0 0 54px}.worn-slot>button:first-child{height:54px;width:44px;padding:4px;border-radius:13px;border:1px solid #c9cbba;background:#fffdf5c9;box-shadow:0 3px 4px #5458470b;display:block}
+.worn-slot small{position:absolute;bottom:2px;right:3px;font-size:10px;background:#dfe5d2;border-radius:50%;width:15px;height:15px;color:#59654a}
+.worn-remove{position:absolute;right:-7px;top:-7px;width:26px;height:26px;display:grid;place-items:center;color:#fff;background:#b47c68;border:3px solid #efeee5;border-radius:50%;font-size:17px;z-index:2}
+.look-scene:not(.fan-open) .character-stage{translate:2% 0}
+.layer-label{border-radius:20px;padding:0 12px;background:#fffdf58c;border:1px solid #dedfce;min-height:40px}.layer-label em{color:#5c6c49}
+.canvas-weather>span{font-size:12px}.canvas-weather small{display:none}
+.peek-label{background:#fffdf5d9;border-radius:20px;padding:8px 14px;bottom:57px;z-index:21}
+.climate-effects.cold .breath{left:51%;top:14%;width:14%;height:4%;background:#f9ffff;filter:blur(2px);box-shadow:0 0 5px #97bcc3;animation:breathing 2s ease-out infinite}
+.climate-effects .shiver{border-left:3px double #678e9e;width:5%;height:10%}.shiver.one{left:29%;top:25%}.shiver.two{left:69%;top:27%}
+.character-wrap .paper-doll[data-mood=cold]{animation:doll-shiver .22s ease-in-out infinite alternate}
+.climate-effects .sweat{width:3.2%;height:3.5%;background:#72aabb;box-shadow:inset 1px 1px #e8ffff}.sweat.one{left:61%;top:12%}.sweat.two{left:66%;top:15%}
+.climate-effects .heat{left:69%;top:23%;height:15%;width:7%;border-right:3px solid #c77e5e;opacity:.8;animation:heat-rise 2.4s ease-out infinite}.climate-effects .heat.second{left:30%;top:32%;animation-delay:1s}
+.flush{left:48%;top:12.6%;width:13%;height:2.5%;background:#e9a18c5c;border-radius:50%;filter:blur(4px)}
+.sparkle{font-style:normal;color:#9baf74;text-shadow:0 0 8px #f8ffc9;font-size:26px;animation:calm-sparkle 3s ease-in-out infinite}.sparkle.one{left:31%;top:24%}.sparkle.two{left:68%;top:36%;animation-delay:1.5s;font-size:20px}
+@keyframes doll-shiver{from{translate:-.7px 0;rotate:-.12deg}to{translate:.7px 0;rotate:.12deg}}
+@keyframes heat-rise{0%{opacity:0;translate:0 8px;scale:.9}40%{opacity:.8}100%{opacity:0;translate:0 -22px;scale:1.1}}
+@keyframes calm-sparkle{0%,100%{opacity:.3;scale:.8}50%{opacity:.85;scale:1}}
+@media(max-width:720px){
+ .fashion-navigation button{font-size:13px;padding:8px 12px}.header-inner{min-height:82px}
+ .worn-rail{left:4px;top:88px;bottom:65px;width:53px;gap:10px}.worn-slot{flex-basis:50px}.worn-slot>button:first-child{width:40px;height:50px}
+ .canvas-actions{right:10px;top:13px;gap:8px}.canvas-actions .text-pill{width:40px;height:40px;min-height:40px}
+ .canvas-weather{top:14px}.canvas-weather strong{font-size:30px}.canvas-weather>span{font-size:11px}
+ .look-scene:not(.fan-open) .character-stage{translate:4% 0;inset:20px 2% 48px}
+ .layer-label{font-size:12px;padding:0 9px}.layer-label em{font-size:11px}
+ .wardrobe-tabs{border:0}.wardrobe-tabs button[role=tab]{border-radius:16px;border:0;padding:7px 8px}.wardrobe-tabs button[aria-selected=true]{background:#e2e6d7}
+ .piece-art{border-radius:16px!important;border:1px solid #d7d8c8!important;background:#fbfaf3b3!important}.wardrobe-piece.selected .piece-art{border:1px solid #7d8c66!important;background:#e1e7d1!important}
+ .wardrobe-options{border:0}.shelf-footer{font-size:10px}.fashion-shelf{padding-top:8px}
+}
+@media(prefers-reduced-motion:reduce){.climate-effects i,.character-wrap .paper-doll{animation:none!important}.breath,.sweat,.heat,.sparkle{opacity:.8!important}}
+
+@media(max-width:720px){.in-studio .look-scene,.in-studio .look-scene.fan-open{height:calc(100svh - 370px)}.worn-remove{width:30px;height:30px}}
