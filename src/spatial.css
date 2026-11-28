@@ -1,0 +1,79 @@
+/* A single dressing stage, with a tactile wardrobe dock and spatial layer inspection. */
+.fashion-workspace{position:relative;grid-template-columns:minmax(0,1fr) 320px;gap:22px}
+.look-scene{perspective:1100px;background:radial-gradient(ellipse at 48% 40%,#f8f6f0 0,#efede5 70%);border-radius:24px;height:calc(100dvh - 175px);max-height:900px;min-height:560px;cursor:pointer}
+.stage-floor{position:absolute;left:26%;right:24%;bottom:8%;height:9%;border-radius:50%;background:radial-gradient(ellipse,#797a6633,transparent 68%);transform:rotateX(58deg);pointer-events:none;transition:translate .5s}
+.character-stage{inset:30px 8% 58px;transform-origin:50% 70%;transition:transform .48s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(7px 12px 5px #45473712)}
+.look-scene.fan-open .character-stage{opacity:1;transform:translateX(-20%) scale(.86);filter:drop-shadow(10px 16px 7px #45473718)}
+.look-scene.fan-open .stage-floor{translate:-15% 0}
+.look-scene.fan-open .canvas-weather,.look-scene.fan-open .canvas-actions{opacity:1;pointer-events:auto}
+.canvas-weather,.canvas-actions,.canvas-bottom{z-index:18}
+.canvas-weather strong{font-size:42px}.canvas-weather small{font-size:12px}
+.canvas-bottom{background:transparent;border:0;min-height:50px}
+.layer-label{min-height:44px;gap:9px}.layer-label em{font-size:12px;color:#68715c}
+.canvas-comfort{font-size:13px}
+.spatial-orbit.layer-fan-overlay{inset:70px 14px 60px 57%;padding:0;background:none;backdrop-filter:none;display:flex;flex-direction:column;gap:0;pointer-events:none;perspective:850px;z-index:10;overflow:visible}
+.spatial-orbit .layer-fan-body{display:flex;flex-direction:column;gap:4px;padding:16px 12px 16px 3px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#9b9e8b44 transparent;pointer-events:auto;max-height:100%;mask-image:none}
+.spatial-orbit .fan-card{position:relative;flex:0 0 auto;display:grid;grid-template-columns:38px minmax(0,1fr);grid-template-rows:95px auto;align-items:center;gap:0;min-width:0;max-width:none;padding:6px 4px 9px;border:0;background:none;border-radius:0;box-shadow:none;transform:rotateY(-18deg) rotateZ(-3deg);transform-origin:left center;animation:orbit-unfold .6s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--orbit-i)*65ms);transition:transform .25s,filter .25s;overflow:visible}
+.spatial-orbit.is-settled .fan-card{animation:none}
+.spatial-orbit .fan-card.is-focused{border:0;background:none;box-shadow:none;transform:translateX(-3px) rotateY(-5deg) rotateZ(1deg)}
+.spatial-orbit .fan-card.is-focused:after{content:'';position:absolute;left:30%;right:12%;bottom:4px;height:1px;background:linear-gradient(90deg,transparent,#7b8665,transparent)}
+.orbit-number{align-self:center;font-size:11px;color:#828774;line-height:1.7;writing-mode:vertical-rl;letter-spacing:1px}
+.spatial-orbit .fan-card-art{height:95px;width:100%;padding:0;min-height:44px;filter:drop-shadow(9px 10px 3px #31362c23);transition:transform .25s;background:none;border:0}
+.spatial-orbit .fan-card-art:hover{transform:translateY(-5px) rotate(3deg)}
+.spatial-orbit .fan-card-caption{grid-column:2;padding:6px 0 0;min-width:0;text-align:center}
+.spatial-orbit .fan-card-caption strong{font-size:13px;white-space:normal;line-height:1.4;font-weight:500}
+.spatial-orbit .fan-card-caption small{font-size:11px;display:none;color:#7b8171}
+.spatial-orbit .fan-card.is-focused .fan-card-caption small{display:block}
+.spatial-orbit .fan-card-tools{position:absolute;right:0;top:4px;display:flex;flex-direction:column;gap:2px;opacity:0;pointer-events:none;transition:opacity .15s;z-index:3}
+.spatial-orbit .fan-card:is(.is-focused,:hover,:focus-within) .fan-card-tools{opacity:1;pointer-events:auto}
+.spatial-orbit .fan-card-tools button{width:32px;height:32px;background:#faf9f3dc;border-radius:50%;border:0;font-size:17px;color:#535f45}
+.spatial-orbit .fan-close-btn{align-self:flex-end;position:absolute;top:-43px;right:0;width:44px;height:44px;border-radius:50%;background:#faf9f3b0;border:0;font-size:25px;pointer-events:auto;z-index:10}
+.orbit-hint{font-size:11px;color:#808774;line-height:1.6;text-align:center;padding:5px 0;flex-shrink:0}
+.fashion-shelf{height:calc(100dvh - 175px);min-height:560px;max-height:900px;padding-top:12px}
+.shelf-heading,.studio-thermal-bar{display:none!important}
+.shelf-body{min-height:0}
+.wardrobe-tabs{gap:15px}.wardrobe-tabs button[role=tab]{font-size:13px;min-height:44px}
+.wardrobe-tab-actions{gap:3px}.category-clear{font-size:11px;min-height:44px}
+.wardrobe-drawer{gap:14px 10px}
+.piece-art{background:transparent;border:0;padding:12px;filter:drop-shadow(6px 8px 3px #31362c18);transition:transform .25s,filter .25s}
+.wardrobe-piece{border:0;background:none}.wardrobe-piece:hover .piece-art{transform:translateY(-5px) rotate(-3deg);background:none}
+.wardrobe-piece.selected .piece-art{background:#e7eadc66;border-radius:38% 44% 40% 45%;outline:0}
+.piece-badge{border-radius:50%;background:#657256;color:white;font-size:9px;padding:4px}
+.piece-caption small{font-size:11px}.piece-caption>span{font-size:13px}
+.color-active-name{display:none}.wardrobe-options{border-top:0}.shelf-footer{font-size:11px;opacity:.7}
+.quick-details{justify-content:flex-end;gap:18px;padding:0 0 24px;flex:1}
+.quick-details .period-switch{margin:0;border:0;min-height:44px}
+.customize-look{border-radius:30px;min-height:52px;font-size:14px;background:#526046;box-shadow:0 8px 18px #33452816}
+@keyframes orbit-unfold{from{opacity:0;transform:translateX(-100px) translateY(20px) rotateY(-55deg) rotateZ(-12deg) scale(.55)}to{opacity:1;transform:rotateY(-18deg) rotateZ(-3deg)}}
+@media(min-width:721px){.in-lookbook .fashion-workspace{grid-template-columns:1fr}.in-lookbook .fashion-shelf{position:absolute;right:30px;bottom:25px;height:auto;min-height:0;width:290px;max-width:35%;z-index:20}.in-lookbook .character-stage{inset:30px 20% 65px}.in-lookbook .shelf-footer{display:none}.in-lookbook .quick-details{padding:0}.in-lookbook .spatial-orbit{left:64%;right:13%;bottom:150px}.in-lookbook .look-scene.fan-open .character-stage{transform:translateX(-16%) scale(.88)}}
+@media(max-width:720px){
+ .fashion-main{padding:0 10px 12px}.fashion-workspace{grid-template-columns:1fr;gap:0}
+ .fashion-header{height:auto}.header-inner{min-height:86px}.fashion-datebar{margin:0;min-height:57px}
+ .look-scene,.in-studio .look-scene,.look-scene.fan-open,.in-studio .look-scene.fan-open{height:calc(100svh - 340px);min-height:330px;max-height:650px;border-radius:20px;transition:none}
+ .in-lookbook .look-scene,.in-lookbook .look-scene.fan-open{height:calc(100svh - 260px);min-height:400px;max-height:740px}
+ .character-stage{inset:20px 3% 48px}.look-scene.fan-open .character-stage{opacity:1;transform:translateX(-22%) scale(.81)}
+ .canvas-weather{left:15px;top:18px}.canvas-weather strong{font-size:34px}.canvas-weather>span{font-size:11px}.canvas-actions{right:13px;top:14px;gap:10px}.canvas-actions button{min-height:38px}
+ .canvas-bottom{padding:0 12px;height:46px}.layer-label{font-size:11px;gap:6px}.layer-label em{font-size:11px}.canvas-comfort{font-size:11px;max-width:44%;text-align:right}
+ .spatial-orbit.layer-fan-overlay{inset:67px 5px 49px 55%;padding:0}
+ .spatial-orbit .layer-fan-body{padding:10px 5px;gap:2px}.spatial-orbit .fan-card{grid-template-columns:24px minmax(0,1fr);grid-template-rows:66px auto;padding:5px 0 9px;flex:0 0 auto;min-width:0;max-width:none}
+ .spatial-orbit .fan-card-art{height:66px;padding:0}.spatial-orbit .fan-card-caption strong{font-size:12px}.spatial-orbit .fan-card-caption small{font-size:10px}.orbit-number{font-size:10px;letter-spacing:0}
+ .spatial-orbit .fan-card-tools{right:0;top:0;flex-direction:row;transform:translateY(-6px)}.spatial-orbit .fan-card-tools button{width:30px;height:30px;font-size:15px}
+ .spatial-orbit .fan-close-btn{top:-49px;right:0;width:40px;height:40px;font-size:23px}.orbit-hint{font-size:10px;padding:3px 0}
+ .fashion-shelf{height:auto;min-height:0;max-height:none;padding:0 4px}.in-studio .fashion-shelf{height:210px}
+ .wardrobe-tabs{gap:0;justify-content:space-between;flex-shrink:0}.wardrobe-tabs button[role=tab]{font-size:12px;padding:8px 3px;min-height:40px}.wardrobe-tab-actions{gap:4px}.category-clear{font-size:10px;min-height:40px}.mobile-reset-only{display:none}
+ .wardrobe-drawer{gap:8px;margin:3px 0 0;padding:3px 0 5px;flex:1}.wardrobe-piece{flex:0 0 94px}.piece-art{height:82px;padding:6px}.piece-caption{gap:2px;padding-top:2px}.piece-caption>span{font-size:12px}.piece-caption small{display:none}
+ .wardrobe-options{min-height:39px;padding:2px 0;flex-shrink:0}.accessory-chip{font-size:11px;min-height:36px}.color-options{gap:2px}.palette-color{min-width:23px;width:23px;height:30px}.in-studio .shelf-footer{display:none}
+ .quick-details{padding:12px 0 0;gap:10px}.quick-details .period-switch button{min-height:40px;font-size:13px}.customize-look{min-height:44px;padding:10px 16px}.shelf-footer{padding-top:5px}
+ .calibration-studio .look-scene{min-height:260px;height:100%;max-height:none}.calibration-studio .fashion-shelf{height:210px}.calibration-workspace{grid-template-rows:minmax(260px,1fr) 210px}
+}
+@media(prefers-reduced-motion:reduce){.spatial-orbit .fan-card{animation:none!important}.character-stage,.piece-art{transition:none!important}}
+
+@media(min-width:721px){.in-lookbook .fashion-shelf{bottom:85px}.in-lookbook .spatial-orbit{bottom:190px}}
+
+@media(max-width:720px){
+ .spatial-orbit .fan-card-caption strong,.piece-caption>span{font-size:14px}
+ .spatial-orbit .fan-card-tools button{width:40px;height:40px}
+ .layer-label,.layer-label em,.canvas-comfort{font-size:12px}
+ .wardrobe-tabs button[role=tab]{font-size:14px;min-height:44px}
+ .orbit-hint{font-size:11px}.spatial-orbit .fan-card-caption small{font-size:11px}
+}

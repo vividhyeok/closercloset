@@ -44,75 +44,17 @@ export function studioShell(state, api) {
 }
 
 export function layerFanMarkup(look, editable, gender = 'female', peekTop = 0, peekBottom = 0) {
-  const uppers = upperLayers(look);
-  const lowers = lowerLayers(look);
-  const activeUpperIdx = Math.max(0, uppers.length - 1 - (peekTop || 0));
-  const activeLowerIdx = Math.max(0, lowers.length - 1 - (peekBottom || 0));
-
-  const renderGroup = (list, region, label, activeIdx) => `
-    <div class="fan-group fan-${region}">
-      <div class="fan-group-head">
-        <span>${label} <b>${list.length}겹</b></span>
-        <small>${list.length > 1 ? '안쪽(01)에서 바깥쪽 순서 · 탭하여 해당 겹 보기' : '단일 레이어'}</small>
-      </div>
-      <div class="fan-cards">
-        ${
-          list.length
-            ? list
-                .map((l, idx) => {
-                  const g = getGarment(l.category, l.id);
-                  const color = look.colors?.[l.category];
-                  const isFocused = idx === activeIdx;
-                  const peekOffset = list.length - 1 - idx;
-                  const roleTag = idx === 0 && list.length > 1 ? 'INNER' : idx === list.length - 1 && list.length > 1 ? 'OUTER' : 'MID';
-                  return `
-                <div class="fan-card ${isFocused ? 'is-focused' : ''}" style="--fan-i:${idx};--fan-total:${list.length}" data-layer-key="${l.key}" data-layer-region="${region}">
-                  <div class="fan-card-top">
-                    <span class="fan-order">${String(idx + 1).padStart(2, '0')} <em>${roleTag}</em></span>
-                    ${
-                      editable
-                        ? `<div class="fan-card-tools">
-                            ${idx > 0 ? `<button class="fan-move" data-action="fan-move" data-key="${l.key}" data-dir="-1" aria-label="${g.name} 안쪽으로 이동">←</button>` : ''}
-                            ${idx < list.length - 1 ? `<button class="fan-move" data-action="fan-move" data-key="${l.key}" data-dir="1" aria-label="${g.name} 바깥쪽으로 이동">→</button>` : ''}
-                            <button class="fan-remove" data-action="remove-layer" data-key="${l.key}" aria-label="${g.name} 벗기기">×</button>
-                          </div>`
-                        : ''
-                    }
-                  </div>
-                  <button class="fan-card-art" data-action="fan-peek" data-region="${region}" data-peek="${peekOffset}" aria-label="${g.name} 착용 모습 보기">
-                    ${garmentDrawing(l.category, l.id, color, gender)}
-                  </button>
-                  <div class="fan-card-caption">
-                    <strong>${g.name}</strong>
-                    <small>${g.profile?.label || ''}</small>
-                  </div>
-                </div>`;
-                })
-                .join('')
-            : '<p class="fan-empty">입힌 옷이 없어요</p>'
-        }
-      </div>
+  const upper=upperLayers(look),lower=lowerLayers(look);
+  const render=(list,region,peek)=>list.map((l,i)=>{
+    const g=getGarment(l.category,l.id),active=i===list.length-1-peek;
+    return `<div class="fan-card orbit-piece ${active?'is-focused':''}" style="--fan-i:${i};--orbit-i:${region==='upper'?i:upper.length+i}" data-layer-key="${l.key}" data-layer-region="${region}">
+      <span class="orbit-number">${region==='upper'?'상의':'하의'} ${i+1}</span>
+      <button class="fan-card-art" data-action="fan-peek" data-region="${region}" data-peek="${list.length-1-i}" aria-label="${g.name} 착용 모습 보기" aria-pressed="${active}">${garmentDrawing(l.category,l.id,look.colors?.[l.category],gender)}</button>
+      <div class="fan-card-caption"><strong>${g.name}</strong><small>${g.profile?.label||''}</small></div>
+      ${editable?`<div class="fan-card-tools">${i>0?`<button data-action="fan-move" data-key="${l.key}" data-dir="-1" aria-label="${g.name} 안쪽으로 이동">←</button>`:''}${i<list.length-1?`<button data-action="fan-move" data-key="${l.key}" data-dir="1" aria-label="${g.name} 바깥쪽으로 이동">→</button>`:''}<button data-action="remove-layer" data-key="${l.key}" aria-label="${g.name} 벗기기">×</button></div>`:''}
     </div>`;
-
-  const extras = [];
-  if (look.hat && look.hat !== 'none') extras.push(getGarment('hat', look.hat).name);
-  if (look.shoes && look.shoes !== 'none') extras.push(getGarment('shoes', look.shoes).name);
-  if (look.scarf) extras.push('머플러');
-
-  return `
-    <div class="layer-fan-overlay" data-action="fan-backdrop">
-      <div class="layer-fan-header">
-        <div>
-          <strong>레이어 분해 보기</strong>
-          <span>상의 ${uppers.length}겹 · 하의 ${lowers.length}겹${extras.length ? ` · ${extras.join(', ')}` : ''}</span>
-        </div>
-        <button class="fan-close-btn" data-action="parts">접기 ×</button>
-      </div>
-      <div class="layer-fan-body">
-        ${renderGroup(uppers, 'upper', '상의', activeUpperIdx)}
-        ${renderGroup(lowers, 'bottom', '하의', activeLowerIdx)}
-      </div>
-    </div>`;
+  }).join('');
+  return `<div class="layer-fan-overlay spatial-orbit" aria-label="입은 옷의 안쪽부터 바깥쪽 순서"><div class="layer-fan-body">${render(upper,'upper',peekTop)}${render(lower,'bottom',peekBottom)}${!upper.length&&!lower.length?'<p class="fan-empty">옷을 골라 입혀보세요</p>':''}</div><span class="orbit-hint">안쪽부터 · 옷을 눌러 살펴보세요</span></div>`;
 }
 
 function workspace(state, api) {
@@ -171,7 +113,7 @@ function workspace(state, api) {
           </button>
           <button class="text-pill" data-action="share" aria-label="코디 이미지 공유">공유</button>
         </div>
-        <div class="character-stage">
+        <div class="stage-floor" aria-hidden="true"></div><div class="character-stage">
           <div class="character-wrap">
             ${character({ ...look, peekTop: state.peekTop, peekBottom: state.peekBottom }, state.settings.gender, result.mood, 'main')}
           </div>
@@ -188,7 +130,7 @@ function workspace(state, api) {
           <div class="layer-info ${state.partsOpen ? 'open' : ''}">
             <button class="layer-label" data-action="parts" aria-expanded="${state.partsOpen}">
               <span>상의 ${topLayers} · 하의 ${bottomLayers}겹</span>
-              <em>${state.partsOpen ? '접기' : '펼쳐보기'}</em>
+              <em>${state.partsOpen ? '모아 입기' : '겹 펼치기 ↗'}</em>
             </button>
           </div>
           <span class="canvas-comfort ${result.mood}"><i></i>${result.label}</span>
@@ -398,33 +340,6 @@ function quickDetails(state, api, look, result) {
               `<button data-action="period" data-period="${id}" class="${state.period === id ? 'active' : ''}" aria-pressed="${state.period === id}">${name}</button>`
           )
           .join('')}
-      </div>
-
-      <div class="quick-header">
-        <h1>${look.lookName || outfitTitle(look)}</h1>
-        <p class="quick-note">${look.note || '선택한 시간대의 체감온도에 맞춘 레이어드 구성입니다.'}</p>
-      </div>
-
-      ${thermalMeterMarkup(result, true)}
-
-      <div class="quick-garments">
-        ${items
-          .map(({ cat, label, id }) => {
-            const g = getGarment(cat, id);
-            const color = look.colors?.[cat];
-            return `
-          <div class="quick-garment-row">
-            <div class="quick-thumb">${garmentDrawing(cat, id, color, gender)}</div>
-            <div class="quick-garment-info">
-              <span class="quick-garment-cat">${label}</span>
-              <strong>${g.name}</strong>
-              <small>${g.profile?.label || g.desc || ''}</small>
-            </div>
-            ${color ? `<span class="quick-color-dot" style="background:${color}" aria-hidden="true"></span>` : ''}
-          </div>`;
-          })
-          .join('')}
-        ${look.scarf ? `<div class="quick-extra-pill">+ 머플러</div>` : ''}
       </div>
 
       <button class="primary-button customize-look" data-action="mode" data-mode="edit">

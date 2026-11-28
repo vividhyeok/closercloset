@@ -1,4 +1,5 @@
 import './styles.css';
+import './spatial.css';
 import { studioShell, wardrobe, layerStackMarkup, layerFanMarkup } from './studio-view.js';
 import { addLayer, countLayers, normalizeOutfit, outfitLayers, removeLayer, upperLayers, lowerLayers, moveLayer, sameOutfit } from './layers.js';
 import { dailyLook } from './daily-look.js';
@@ -14,7 +15,7 @@ import {
   validForecastCache,
 } from './weather.js';
 import { assess, layerCount, calibrationOffset } from './wardrobe.js';
-import { character } from './paper-doll.js';
+import { character, garmentDrawing } from './paper-doll.js';
 import { createLookImage } from './share-card.js';
 import { LOOKS_KEY, SETTINGS_KEY, readStorage, sanitizeLooks, validSettings, writeStorage } from './storage.js';
 
@@ -93,6 +94,9 @@ function toast(message) {
 }
 
 function render() {
+  const oldScene=document.querySelector('#swipe-scene'),wasOpen=oldScene?.classList.contains('fan-open');
+  const oldStage=oldScene?.querySelector('.character-stage'),fromTransform=oldStage?getComputedStyle(oldStage).transform:'none';
+  const fanScroll = document.querySelector('#swipe-scene .layer-fan-body')?.scrollTop || 0;
   const prevDrawer = document.querySelector('.fashion-app .wardrobe-drawer');
   const scrollLeft = prevDrawer?.scrollLeft || 0;
   const scrollTop = prevDrawer?.scrollTop || 0;
@@ -100,6 +104,14 @@ function render() {
 
   app.innerHTML = studioShell(state, { current, climate, outfit, assessment, isSaved, savedPage });
   bindHome(railPrevScroll);
+  const newScene=document.querySelector('#swipe-scene'),newStage=newScene?.querySelector('.character-stage');
+  if (wasOpen && state.partsOpen) {
+    newScene?.querySelector('.layer-fan-overlay')?.classList.add('is-settled');
+    const fan = newScene?.querySelector('.layer-fan-body');
+    if (fan) fan.scrollTop = fanScroll;
+  }
+  if(oldStage&&newStage&&wasOpen!==state.partsOpen&&!matchMedia('(prefers-reduced-motion: reduce)').matches)newStage.animate([{transform:fromTransform},{transform:getComputedStyle(newStage).transform}],{duration:460,easing:'cubic-bezier(.2,.8,.2,1)'});
+
 
   const nextDrawer = document.querySelector('.fashion-app .wardrobe-drawer');
   if (nextDrawer) {
@@ -330,12 +342,14 @@ function saveLook() {
 }
 
 function animatePeek() {
-  document.querySelectorAll('.doodle-visible-upper, .doodle-bottom').forEach(el =>
-    el.animate([{ opacity: 0.25, transform: 'translateX(8px)' }, { opacity: 1, transform: 'translateX(0)' }], {
-      duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180,
-      easing: 'ease-out',
-    })
-  );
+  document.querySelectorAll('.character-wrap .paper-doll').forEach(el=>el.animate([{opacity:.5,filter:'blur(2px)'},{opacity:1,filter:'blur(0)'}],{duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:260,easing:'ease-out'}));
+}
+function equipFlight(rect,category,id){
+ if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+ const stage=document.querySelector('#swipe-scene .character-wrap');if(!stage)return;
+ const to=stage.getBoundingClientRect(),ghost=document.createElement('div');ghost.className='equip-flight';ghost.innerHTML=garmentDrawing(category,id,undefined,state.settings.gender);document.body.append(ghost);
+ ghost.style.cssText=`position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;z-index:1000;pointer-events:none`;
+ const flight=ghost.animate([{transform:'translate(0,0) scale(1)',opacity:.9},{transform:`translate(${to.left+to.width*.5-rect.left-rect.width/2}px,${to.top+to.height*.4-rect.top}px) scale(.55) rotate(-8deg)`,opacity:0}],{duration:440,easing:'cubic-bezier(.2,.8,.2,1)'});flight.onfinish=()=>ghost.remove();
 }
 
 function shiftLayer(look, key, dir) {
@@ -359,6 +373,7 @@ document.addEventListener('click', event => {
       calibrationSession.action('toggle-piece', piece);
       return;
     }
+    const pieceRect=piece.querySelector('.piece-art').getBoundingClientRect();
     const look = normalizeOutfit(outfit());
     const existing = outfitLayers(look)
       .filter(l => l.category === category && l.id === id)
@@ -371,6 +386,8 @@ document.addEventListener('click', event => {
     state.peekTop = 0;
     state.peekBottom = 0;
     render();
+    if(!existing)equipFlight(pieceRect,category,id);
+    animatePeek();
     return;
   }
 
